@@ -157,7 +157,7 @@ button,input,select,textarea{font-family:inherit}
   padding:12px 10px;
   border-radius:14px;
   display:grid;
-  grid-template-columns:34px 1fr 18px;
+  grid-template-columns:34px 1fr;
   align-items:center;
   gap:8px;
   text-align:right;
@@ -322,4 +322,13 @@ svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke
   .icon-btn{width:48px;height:48px;border-radius:16px}
   .grid{grid-template-columns:1fr 1fr}
   .user-pill{font-size:13px}
+}
+
+
+/* Clean dashboard update */
+.drawer-nav button{
+  justify-content:stretch;
+}
+.drawer-nav button span:nth-child(2){
+  text-align:right;
 }

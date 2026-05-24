@@ -1,18 +1,12 @@
-TAK Duty Control - Offline Prototype - Side Menu Version
+TAK Duty Control - Offline Prototype - Clean Dashboard Version
 
 تغییرات این نسخه:
-- عنوان TAK Duty Control وسط‌چین شد.
-- منوی اصلی از بالای صفحه حذف شد.
-- منوی همبرگری به صورت کشویی از سمت راست اضافه شد.
-- آیکون‌های زیبا برای منو و کارت‌های داشبورد اضافه شد.
-- ساختار همچنان آفلاین و قابل استفاده روی GitHub Pages است.
+- فلش‌های منوی کشویی حذف شدند.
+- گزینه‌های منو از صفحه اصلی حذف شدند.
+- صفحه اصلی فقط داشبورد، آمار و کارهای مهم را نشان می‌دهد.
+- منوی اصلی فقط از طریق دکمه همبرگری باز می‌شود.
+- عنوان TAK Duty Control وسط‌چین است.
+- نسخه همچنان آفلاین و مناسب GitHub Pages است.
 
-روش استفاده در GitHub:
-فایل‌های داخل ZIP را جایگزین فایل‌های قبلی کنید:
-index.html
-styles.css
-js/app.js
-js/storage.js
-README.txt
-
-بعد Commit changes بزنید.
+برای آپلود در GitHub:
+فایل‌های داخل ZIP را جایگزین فایل‌های قبلی کنید و Commit changes بزنید.
