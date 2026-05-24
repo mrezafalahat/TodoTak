@@ -10,6 +10,35 @@ function userName(id){ return db.users.find(u=>u.id===id)?.name || "-"; }
 function assetName(id){ return db.assets.find(a=>a.id===id)?.name || "-"; }
 function currentUser(){ return db.users.find(u=>u.id===currentUserId); }
 
+function icon(name){
+  const icons = {
+    menu:`<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`,
+    close:`<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+    user:`<svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>`,
+    home:`<svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>`,
+    tasks:`<svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><path d="M9 17l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg>`,
+    plus:`<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>`,
+    calendar:`<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/><path d="M8 15h.01M12 15h.01M16 15h.01"/></svg>`,
+    people:`<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    wrench:`<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6Z"/></svg>`,
+    chart:`<svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>`,
+    logout:`<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
+    chevron:`<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`
+  };
+  return icons[name] || "";
+}
+
+const menuItems = [
+  ["dashboard","داشبورد","home"],
+  ["tasks","وظایف","tasks"],
+  ["newTask","تعریف وظیفه","plus"],
+  ["daily","گزارش روزانه","calendar"],
+  ["people","پرسنل","people"],
+  ["assets","تجهیزات و PM","wrench"],
+  ["reports","گزارش عملکرد","chart"]
+];
+
+
 function canSeeTask(task){
   const u = currentUser();
   if(!u) return false;
@@ -27,46 +56,66 @@ function render(){
 
   app.className = "app";
   app.innerHTML = `
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="side-drawer" id="sideDrawer">
+      <div class="drawer-head">
+        <b style="color:var(--navy)">منو</b>
+        <button class="close-btn" id="closeDrawer">${icon("close")}</button>
+      </div>
+      <div class="drawer-user">
+        <div class="avatar">${icon("user")}</div>
+        <b>${currentUser().name}</b>
+        <span>${currentUser().role}</span>
+      </div>
+      <div class="drawer-nav">
+        ${menuItems.map(m=>drawerBtn(m[0],m[1],m[2])).join("")}
+      </div>
+      <div class="drawer-spacer"></div>
+      <div class="drawer-nav">
+        <button id="logoutBtn">${spanIcon("logout")}<span>خروج</span>${icon("chevron")}</button>
+      </div>
+    </aside>
+
     <div class="header">
-      <div>
-        <h1>TAK Duty Control</h1>
-        <small>نسخه آفلاین مدیریت وظایف، گزارش روزانه و PM</small>
+      <div class="header-top">
+        <button class="icon-btn" id="menuBtn">${icon("menu")}</button>
+        <div class="header-title">
+          <h1>TAK Duty Control</h1>
+          <small>نسخه آفلاین مدیریت وظایف، گزارش روزانه و PM</small>
+        </div>
+        <div></div>
       </div>
-      <div class="user-box">
+      <div class="user-pill">
         ${currentUser().name} - ${currentUser().role}
-        <button class="mobile-menu-btn" id="menuBtn">☰</button>
-        <button class="btn yellow" id="logoutBtn">خروج</button>
       </div>
     </div>
-    <div class="nav-wrap">
-      <div class="nav" id="mainNav">
-        ${navBtn("dashboard","داشبورد")}
-        ${navBtn("tasks","وظایف")}
-        ${navBtn("newTask","تعریف وظیفه")}
-        ${navBtn("daily","گزارش روزانه")}
-        ${navBtn("people","پرسنل")}
-        ${navBtn("assets","تجهیزات و PM")}
-        ${navBtn("reports","گزارش عملکرد")}
-      </div>
-    </div>
-    <div id="view"></div>
+
+    <main class="main" id="view"></main>
   `;
   document.getElementById("logoutBtn").onclick = () => { clearSession(); currentUserId=""; render(); };
-  const menuBtn = document.getElementById("menuBtn");
-  const mainNav = document.getElementById("mainNav");
-  if(menuBtn && mainNav){
-    menuBtn.onclick = () => mainNav.classList.toggle("show");
-  }
+  const drawer = document.getElementById("sideDrawer");
+  const backdrop = document.getElementById("drawerBackdrop");
+  const openDrawer = () => { drawer.classList.add("show"); backdrop.classList.add("show"); };
+  const closeDrawer = () => { drawer.classList.remove("show"); backdrop.classList.remove("show"); };
+  document.getElementById("menuBtn").onclick = openDrawer;
+  document.getElementById("closeDrawer").onclick = closeDrawer;
+  backdrop.onclick = closeDrawer;
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
     currentView=b.dataset.view;
-    if(mainNav) mainNav.classList.remove("show");
+    closeDrawer();
     render();
   });
   renderView();
 }
 
-function navBtn(id,label){
-  return `<button data-view="${id}" class="${currentView===id?'active':''}">${label}</button>`;
+function spanIcon(name){
+  return `<span class="drawer-icon">${icon(name)}</span>`;
+}
+function drawerBtn(id,label,ic){
+  return `<button data-view="${id}" class="${currentView===id?'active':''}">${spanIcon(ic)}<span>${label}</span>${icon("chevron")}</button>`;
+}
+function quickCard(id,label,ic){
+  return `<div class="quick-card ${currentView===id?'active':''}" data-view="${id}"><b>${label}</b><span class="big-icon">${icon(ic)}</span></div>`;
 }
 
 function renderLogin(){
@@ -127,6 +176,14 @@ function dashboardHTML(){
   const late = tasks.filter(t=>t.status!=="done" && t.dueDate < todayISO()).length;
   const today = tasks.filter(t=>t.dueDate===todayISO() && t.status!=="done").length;
   return `
+    <div class="quick-grid">
+      ${quickCard("tasks","وظایف","tasks")}
+      ${quickCard("newTask","تعریف وظیفه","plus")}
+      ${quickCard("daily","گزارش روزانه","calendar")}
+      ${quickCard("people","پرسنل","people")}
+      ${quickCard("assets","تجهیزات و PM","wrench")}
+      ${quickCard("reports","گزارش عملکرد","chart")}
+    </div>
     <div class="grid">
       ${kpi("کارهای باز",open)}
       ${kpi("امروز",today)}
