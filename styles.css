@@ -332,3 +332,61 @@ svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke
 .drawer-nav button span:nth-child(2){
   text-align:right;
 }
+
+
+/* Mobile-first Persian date and permission update */
+.checkbox-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+}
+.checkbox-grid label{
+  background:#f8fafc;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:9px;
+}
+.small{
+  padding:8px 10px;
+  font-size:12px;
+}
+@media(max-width:560px){
+  .form-grid{
+    grid-template-columns:1fr !important;
+    gap:14px;
+  }
+  input,select,textarea{
+    min-height:54px;
+    font-size:16px;
+    border-radius:16px;
+  }
+  label{
+    font-size:15px;
+  }
+  .card{
+    border-radius:22px;
+    padding:18px;
+  }
+  .card h2{
+    text-align:center;
+    font-size:25px;
+    margin-bottom:18px;
+  }
+  .actions .btn{
+    width:100%;
+    min-height:52px;
+    font-size:16px;
+  }
+  .grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .kpi{
+    font-size:24px;
+  }
+  table{
+    min-width:760px;
+  }
+  .checkbox-grid{
+    grid-template-columns:1fr;
+  }
+}
