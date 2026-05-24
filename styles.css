@@ -166,3 +166,54 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
   .header h1{font-size:18px}
   .app{padding:7px}
 }
+
+
+/* Hamburger menu update */
+.mobile-menu-btn{
+  display:none;
+  border:0;
+  border-radius:14px;
+  padding:10px 13px;
+  background:var(--yellow);
+  color:#111827;
+  font-size:22px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.nav-wrap{
+  position:relative;
+}
+.nav.show{
+  display:grid;
+}
+@media(max-width:900px){
+  .mobile-menu-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .nav{
+    display:none;
+    grid-template-columns:1fr;
+    position:absolute;
+    top:8px;
+    right:0;
+    left:0;
+    z-index:50;
+    background:white;
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:8px;
+    box-shadow:0 16px 35px rgba(15,23,42,.18);
+  }
+  .nav button{
+    text-align:right;
+    box-shadow:none;
+    border:1px solid var(--line);
+  }
+}
+@media(min-width:901px){
+  .nav{
+    display:grid !important;
+  }
+}
