@@ -3,6 +3,7 @@ import { loadDB, saveDB, getSession, setSession, clearSession, resetDB, uid, tod
 let db = loadDB();
 let currentUserId = getSession();
 let currentView = "dashboard";
+let editingTaskId = "";
 
 const app = document.getElementById("app");
 
@@ -37,6 +38,37 @@ const menuItems = [
   ["assets","تجهیزات و PM","wrench"],
   ["reports","گزارش عملکرد","chart"]
 ];
+
+function toPersianDigits(str){
+  const map = {"0":"۰","1":"۱","2":"۲","3":"۳","4":"۴","5":"۵","6":"۶","7":"۷","8":"۸","9":"۹"};
+  return String(str).replace(/[0-9]/g, d => map[d]);
+}
+function formatJalali(isoDate){
+  if(!isoDate) return "-";
+  const d = new Date(isoDate + "T12:00:00");
+  return toPersianDigits(new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    year:"numeric", month:"2-digit", day:"2-digit"
+  }).format(d));
+}
+function formatJalaliDateTime(text){
+  if(!text) return "-";
+  return text;
+}
+function canEditTask(t){
+  const u = currentUser();
+  if(!u || !t) return false;
+  return u.level === "admin" || t.creatorId === u.id;
+}
+function canDoTask(t){
+  const u = currentUser();
+  if(!u || !t) return false;
+  return u.level === "admin" || t.executorId === u.id;
+}
+function canCommentTask(t){
+  const u = currentUser();
+  if(!u || !t) return false;
+  return canEditTask(t) || canDoTask(t) || (t.watcherIds||[]).includes(u.id);
+}
 
 
 function canSeeTask(task){
@@ -102,6 +134,7 @@ function render(){
   backdrop.onclick = closeDrawer;
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
     currentView=b.dataset.view;
+    if(currentView!=="newTask") editingTaskId="";
     closeDrawer();
     render();
   });
@@ -209,10 +242,11 @@ function taskTable(tasks){
           <td>${userName(t.executorId)}</td>
           <td>${(t.watcherIds||[]).map(userName).join("، ")}</td>
           <td>${t.location||"-"}</td>
-          <td>${t.dueDate}</td>
+          <td>${formatJalali(t.dueDate)}</td>
           <td>${t.type}</td>
           <td>
-            ${t.status!=="done" ? `<button class="btn success small" data-done="${t.id}">انجام شد</button>` : ""}
+            ${t.status!=="done" && canDoTask(t) ? `<button class="btn success small" data-done="${t.id}">انجام شد</button>` : ""}
+            ${canEditTask(t) ? `<button class="btn yellow small" data-edit="${t.id}">ادیت</button>` : ""}
             <button class="btn small" data-detail="${t.id}">جزئیات</button>
           </td>
         </tr>`).join("")}
@@ -228,37 +262,47 @@ function tasksHTML(){
 }
 
 function newTaskHTML(){
+  const t = editingTaskId ? db.tasks.find(x=>x.id===editingTaskId) : null;
+  const isEdit = !!t;
+  if(isEdit && !canEditTask(t)){
+    editingTaskId = "";
+    return `<div class="card"><h2>دسترسی غیرمجاز</h2><p class="muted">فقط ایجادکننده وظیفه یا مدیرعامل می‌تواند اصل وظیفه را ویرایش کند.</p></div>`;
+  }
   return `<div class="card">
-    <h2>تعریف وظیفه جدید</h2>
+    <h2>${isEdit ? "ویرایش وظیفه" : "تعریف وظیفه جدید"}</h2>
+    <p class="muted">نمایش تاریخ‌ها شمسی است؛ ذخیره داخلی برای گزارش‌گیری دقیق به‌صورت استاندارد انجام می‌شود.</p>
     <div class="form-grid">
-      <div><label>عنوان</label><input id="taskTitle"></div>
-      <div><label>مسئول اجرا</label>${userSelect("taskExecutor")}</div>
-      <div><label>مهلت</label><input type="date" id="taskDue" value="${todayISO()}"></div>
-      <div><label>واحد</label>${simpleSelect("taskDept",db.departments)}</div>
-      <div><label>محل</label>${simpleSelect("taskLocation",db.locations)}</div>
-      <div><label>نوع</label>${simpleSelect("taskType",["روزانه","هفتگی","ماهانه","سالیانه","تاریخ مشخص","فوری","بازدیدی","PM"])}</div>
-      <div><label>اولویت</label>${simpleSelect("taskPriority",["عادی","بالا","بحرانی"])}</div>
-      <div><label>تجهیزات مرتبط</label>${assetSelect("taskAsset")}</div>
-      <div><label>نیاز به عکس؟</label>${simpleSelect("taskPhoto",["خیر","بله"])}</div>
-      <div class="full"><label>پیگیرها / ناظرها</label>${multiUserCheckboxes("watchers")}</div>
-      <div class="full"><label>شرح کار</label><textarea id="taskDesc"></textarea></div>
+      <div><label>عنوان</label><input id="taskTitle" value="${t?.title || ""}"></div>
+      <div><label>مسئول اجرا</label>${userSelect("taskExecutor", t?.executorId)}</div>
+      <div><label>مهلت</label><input type="date" id="taskDue" value="${t?.dueDate || todayISO()}"><div class="muted" id="jalaliDue">${formatJalali(t?.dueDate || todayISO())}</div></div>
+      <div><label>بخش / واحد سازمانی</label>${simpleSelect("taskDept",db.departments,t?.department)}</div>
+      <div><label>محل</label>${simpleSelect("taskLocation",db.locations,t?.location)}</div>
+      <div><label>نوع</label>${simpleSelect("taskType",["روزانه","هفتگی","ماهانه","سالیانه","تاریخ مشخص","فوری","بازدیدی","PM"],t?.type)}</div>
+      <div><label>اولویت</label>${simpleSelect("taskPriority",["عادی","بالا","بحرانی"],t?.priority)}</div>
+      <div><label>تجهیزات مرتبط</label>${assetSelect("taskAsset",t?.assetId)}</div>
+      <div><label>نیاز به عکس؟</label>${simpleSelect("taskPhoto",["خیر","بله"],t?.needPhoto ? "بله" : "خیر")}</div>
+      <div class="full"><label>پیگیرها / ناظرها</label>${multiUserCheckboxes("watchers",t?.watcherIds || [])}</div>
+      <div class="full"><label>شرح کار</label><textarea id="taskDesc">${t?.description || ""}</textarea></div>
     </div>
-    <div class="actions"><button class="btn primary" id="saveTask">ثبت وظیفه</button></div>
+    <div class="actions">
+      <button class="btn primary" id="saveTask">${isEdit ? "ذخیره ویرایش" : "ثبت وظیفه"}</button>
+      ${isEdit ? `<button class="btn danger" id="cancelEdit">انصراف</button>` : ""}
+    </div>
   </div>`;
 }
 
-function userSelect(id){
-  return `<select id="${id}">${db.users.filter(u=>u.active).map(u=>`<option value="${u.id}">${u.name} - ${u.role}</option>`).join("")}</select>`;
+function userSelect(id, selected=""){
+  return `<select id="${id}">${db.users.filter(u=>u.active).map(u=>`<option value="${u.id}" ${u.id===selected?'selected':''}>${u.name} - ${u.role}</option>`).join("")}</select>`;
 }
-function assetSelect(id){
-  return `<select id="${id}"><option value="">بدون دستگاه</option>${db.assets.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select>`;
+function assetSelect(id, selected=""){
+  return `<select id="${id}"><option value="">بدون دستگاه</option>${db.assets.map(a=>`<option value="${a.id}" ${a.id===selected?'selected':''}>${a.name}</option>`).join("")}</select>`;
 }
-function simpleSelect(id,arr){
-  return `<select id="${id}">${arr.map(x=>`<option value="${x}">${x}</option>`).join("")}</select>`;
+function simpleSelect(id,arr,selected=""){
+  return `<select id="${id}">${arr.map(x=>`<option value="${x}" ${x===selected?'selected':''}>${x}</option>`).join("")}</select>`;
 }
-function multiUserCheckboxes(name){
-  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-    ${db.users.filter(u=>u.active).map(u=>`<label><input type="checkbox" name="${name}" value="${u.id}"> ${u.name}</label>`).join("")}
+function multiUserCheckboxes(name, selected=[]){
+  return `<div class="checkbox-grid">
+    ${db.users.filter(u=>u.active).map(u=>`<label><input type="checkbox" name="${name}" value="${u.id}" ${selected.includes(u.id)?'checked':''}> ${u.name}</label>`).join("")}
   </div>`;
 }
 
@@ -266,7 +310,7 @@ function dailyHTML(){
   return `<div class="card">
     <h2>گزارش روزانه</h2>
     <div class="form-grid">
-      <div><label>تاریخ</label><input type="date" id="repDate" value="${todayISO()}"></div>
+      <div><label>تاریخ</label><input type="date" id="repDate" value="${todayISO()}"><div class="muted">${formatJalali(todayISO())}</div></div>
       <div><label>نوع گزارش</label>${simpleSelect("repType",["عمومی","فروش","تعمیرات","نگهبانی","تولید","منابع انسانی"])}</div>
       <div><label>تعداد تماس/اقدام</label><input type="number" id="repCount" value="0"></div>
       <div class="full"><label>شرح گزارش</label><textarea id="repText" placeholder="مثلاً برای فروش: با چه مشتری‌هایی تماس گرفتی، نتیجه چه شد، پیگیری بعدی چیست"></textarea></div>
@@ -279,7 +323,7 @@ function dailyHTML(){
 }
 function dailyTable(rows){
   return `<div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>تعداد</th><th>شرح</th><th>ثبت</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${r.date}</td><td>${r.type}</td><td>${r.count}</td><td>${r.text}</td><td>${r.createdAt}</td></tr>`).join("")}
+    ${rows.map(r=>`<tr><td>${formatJalali(r.date)}</td><td>${r.type}</td><td>${r.count}</td><td>${r.text}</td><td>${r.createdAt}</td></tr>`).join("")}
   </tbody></table></div>`;
 }
 
@@ -351,36 +395,71 @@ function reportsHTML(){
 }
 
 function bindEvents(){
+  const dueInput = document.getElementById("taskDue");
+  if(dueInput){
+    dueInput.onchange = () => {
+      const el = document.getElementById("jalaliDue");
+      if(el) el.textContent = formatJalali(dueInput.value);
+    };
+  }
+
+  const cancelEdit = document.getElementById("cancelEdit");
+  if(cancelEdit) cancelEdit.onclick = () => { editingTaskId=""; currentView="tasks"; render(); };
+
   const saveTask = document.getElementById("saveTask");
   if(saveTask) saveTask.onclick = () => {
     const watcherIds = [...document.querySelectorAll('input[name="watchers"]:checked')].map(x=>x.value);
-    db.tasks.unshift({
-      id:uid("t"),
-      title:val("taskTitle"),
-      description:val("taskDesc"),
-      creatorId:currentUserId,
-      executorId:val("taskExecutor"),
-      watcherIds,
-      department:val("taskDept"),
-      location:val("taskLocation"),
-      assetId:val("taskAsset"),
-      priority:val("taskPriority"),
-      type:val("taskType"),
-      dueDate:val("taskDue"),
-      needPhoto:val("taskPhoto")==="بله",
-      needNote:true,
-      status:"open",
-      doneAt:"",
-      doneNote:"",
-      photos:[],
-      createdAt:nowText(),
-      logs:[{at:nowText(), by:currentUserId, action:"ایجاد وظیفه"}]
-    });
+    if(editingTaskId){
+      const t = db.tasks.find(x=>x.id===editingTaskId);
+      if(!t || !canEditTask(t)){
+        alert("اجازه ویرایش این وظیفه را ندارید.");
+        return;
+      }
+      Object.assign(t,{
+        title:val("taskTitle"),
+        description:val("taskDesc"),
+        executorId:val("taskExecutor"),
+        watcherIds,
+        department:val("taskDept"),
+        location:val("taskLocation"),
+        assetId:val("taskAsset"),
+        priority:val("taskPriority"),
+        type:val("taskType"),
+        dueDate:val("taskDue"),
+        needPhoto:val("taskPhoto")==="بله"
+      });
+      t.logs.push({at:nowText(), by:currentUserId, action:"ویرایش وظیفه"});
+      editingTaskId="";
+    }else{
+      db.tasks.unshift({
+        id:uid("t"),
+        title:val("taskTitle"),
+        description:val("taskDesc"),
+        creatorId:currentUserId,
+        executorId:val("taskExecutor"),
+        watcherIds,
+        department:val("taskDept"),
+        location:val("taskLocation"),
+        assetId:val("taskAsset"),
+        priority:val("taskPriority"),
+        type:val("taskType"),
+        dueDate:val("taskDue"),
+        needPhoto:val("taskPhoto")==="بله",
+        needNote:true,
+        status:"open",
+        doneAt:"",
+        doneNote:"",
+        photos:[],
+        createdAt:nowText(),
+        logs:[{at:nowText(), by:currentUserId, action:"ایجاد وظیفه"}]
+      });
+    }
     saveDB(db); currentView="tasks"; render();
   };
 
   document.querySelectorAll("[data-done]").forEach(btn=>btn.onclick=()=>markDone(btn.dataset.done));
   document.querySelectorAll("[data-detail]").forEach(btn=>btn.onclick=()=>showDetail(btn.dataset.detail));
+  document.querySelectorAll("[data-edit]").forEach(btn=>btn.onclick=()=>{ editingTaskId = btn.dataset.edit; currentView="newTask"; render(); });
 
   const saveReport = document.getElementById("saveReport");
   if(saveReport) saveReport.onclick = () => {
@@ -433,11 +512,11 @@ function showDetail(id){
 پیگیرها: ${(t.watcherIds||[]).map(userName).join("، ")}
 محل: ${t.location}
 دستگاه: ${assetName(t.assetId)}
-مهلت: ${t.dueDate}
+مهلت: ${formatJalali(t.dueDate)}
 وضعیت: ${t.status}
 شرح: ${t.description}
 توضیح انجام: ${t.doneNote || "-"}
-ثبت: ${t.createdAt}`
+ثبت: ${t.createdAt}\nدسترسی ادیت: ${canEditTask(t) ? "دارد" : "ندارد"}`
   );
 }
 
