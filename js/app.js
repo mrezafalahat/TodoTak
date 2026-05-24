@@ -34,22 +34,34 @@ function render(){
       </div>
       <div class="user-box">
         ${currentUser().name} - ${currentUser().role}
+        <button class="mobile-menu-btn" id="menuBtn">☰</button>
         <button class="btn yellow" id="logoutBtn">خروج</button>
       </div>
     </div>
-    <div class="nav">
-      ${navBtn("dashboard","داشبورد")}
-      ${navBtn("tasks","وظایف")}
-      ${navBtn("newTask","تعریف وظیفه")}
-      ${navBtn("daily","گزارش روزانه")}
-      ${navBtn("people","پرسنل")}
-      ${navBtn("assets","تجهیزات و PM")}
-      ${navBtn("reports","گزارش عملکرد")}
+    <div class="nav-wrap">
+      <div class="nav" id="mainNav">
+        ${navBtn("dashboard","داشبورد")}
+        ${navBtn("tasks","وظایف")}
+        ${navBtn("newTask","تعریف وظیفه")}
+        ${navBtn("daily","گزارش روزانه")}
+        ${navBtn("people","پرسنل")}
+        ${navBtn("assets","تجهیزات و PM")}
+        ${navBtn("reports","گزارش عملکرد")}
+      </div>
     </div>
     <div id="view"></div>
   `;
   document.getElementById("logoutBtn").onclick = () => { clearSession(); currentUserId=""; render(); };
-  document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{currentView=b.dataset.view; renderView();});
+  const menuBtn = document.getElementById("menuBtn");
+  const mainNav = document.getElementById("mainNav");
+  if(menuBtn && mainNav){
+    menuBtn.onclick = () => mainNav.classList.toggle("show");
+  }
+  document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
+    currentView=b.dataset.view;
+    if(mainNav) mainNav.classList.remove("show");
+    render();
+  });
   renderView();
 }
 
