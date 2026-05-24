@@ -112,7 +112,7 @@ function spanIcon(name){
   return `<span class="drawer-icon">${icon(name)}</span>`;
 }
 function drawerBtn(id,label,ic){
-  return `<button data-view="${id}" class="${currentView===id?'active':''}">${spanIcon(ic)}<span>${label}</span>${icon("chevron")}</button>`;
+  return `<button data-view="${id}" class="${currentView===id?'active':''}">${spanIcon(ic)}<span>${label}</span></button>`;
 }
 function quickCard(id,label,ic){
   return `<div class="quick-card ${currentView===id?'active':''}" data-view="${id}"><b>${label}</b><span class="big-icon">${icon(ic)}</span></div>`;
@@ -176,23 +176,21 @@ function dashboardHTML(){
   const late = tasks.filter(t=>t.status!=="done" && t.dueDate < todayISO()).length;
   const today = tasks.filter(t=>t.dueDate===todayISO() && t.status!=="done").length;
   return `
-    <div class="quick-grid">
-      ${quickCard("tasks","وظایف","tasks")}
-      ${quickCard("newTask","تعریف وظیفه","plus")}
-      ${quickCard("daily","گزارش روزانه","calendar")}
-      ${quickCard("people","پرسنل","people")}
-      ${quickCard("assets","تجهیزات و PM","wrench")}
-      ${quickCard("reports","گزارش عملکرد","chart")}
-    </div>
     <div class="grid">
       ${kpi("کارهای باز",open)}
       ${kpi("امروز",today)}
       ${kpi("عقب‌افتاده",late)}
       ${kpi("انجام‌شده",done)}
     </div>
+
     <div class="card" style="margin-top:10px">
       <h3>کارهای مهم امروز</h3>
       ${taskTable(tasks.filter(t=>t.status!=="done").slice(0,8))}
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <h3>خلاصه مدیریت</h3>
+      <p class="muted">از منوی همبرگری بالا می‌توانی وارد بخش‌های وظایف، تعریف وظیفه، گزارش روزانه، پرسنل، تجهیزات و گزارش عملکرد شوی.</p>
     </div>
   `;
 }
