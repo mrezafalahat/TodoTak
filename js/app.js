@@ -36,10 +36,10 @@ function icon(name){
 }
 
 const menuItems = [
-  ["dashboard","داشبورد","home"],
   ["daily","گزارش روزانه","calendar"],
   ["newTask","تعریف وظیفه","plus"],
   ["tasks","وظایف","tasks"],
+  ["dashboard","داشبورد","home"],
   ["people","پرسنل","people"],
   ["assets","تجهیزات و PM","wrench"],
   ["reports","گزارش عملکرد","chart"]
@@ -129,19 +129,48 @@ function kpi(title,num,filter){ return `<button type="button" class="kpi ${dashb
 
 function taskList(tasks){
   if(!tasks.length) return `<div class="muted empty-state">وظیفه‌ای وجود ندارد.</div>`;
-  return `<div class="list">${tasks.map(t=>`<div class="task-row"><span class="dot ${isLate(t)?'late':t.status}"></span><div class="task-main"><div class="task-title">${esc(t.title)}</div><div class="task-sub">${esc(t.location||'-')} • ${esc(t.type||'-')}</div></div><div class="task-person">${esc(userName(t.executorId))}</div><div class="task-date">${compactJalali(t.dueDate)}</div><div class="more"><button class="more-btn" data-menu="${t.id}">⋮</button><div class="action-menu" id="menu_${t.id}">${t.status!=="done"&&canDoTask(t)?`<button data-done="${t.id}">انجام شد</button>`:""}${canEditTask(t)?`<button data-edit="${t.id}">ویرایش</button>`:""}<button data-detail="${t.id}">جزئیات</button>${canDeleteTask(t)?`<button class="danger" data-delete="${t.id}">حذف</button>`:""}</div></div></div>`).join("")}</div>`;
+  return `<div class="list">${tasks.map(t=>`<div class="task-row"><span class="dot ${isLate(t)?'late':t.status}"></span><div class="task-main"><div class="task-title">${esc(t.title)}</div><div class="task-sub">${esc(t.location||'-')} • ${esc(t.type||'-')}</div></div><div class="task-person">${esc(userName(t.executorId))}</div><div class="task-date">${compactJalali(t.dueDate)}${t.dueTime?`<br>${esc(t.dueTime)}`:""}</div><div class="more"><button class="more-btn" data-menu="${t.id}">⋮</button><div class="action-menu" id="menu_${t.id}">${t.status!=="done"&&canDoTask(t)?`<button data-done="${t.id}">انجام شد</button>`:""}${canEditTask(t)?`<button data-edit="${t.id}">ویرایش</button>`:""}<button data-detail="${t.id}">جزئیات</button>${canDeleteTask(t)?`<button class="danger" data-delete="${t.id}">حذف</button>`:""}</div></div></div>`).join("")}</div>`;
 }
 function tasksHTML(){ return `<div class="card"><h2>وظایف</h2><p class="muted">لیست فشرده؛ ادیت، حذف و انجام از سه‌نقطه.</p>${taskList(visibleTasks())}</div>`; }
 
 function newTaskHTML(){
   const t=editingTaskId?db.tasks.find(x=>x.id===editingTaskId):null, isEdit=!!t;
   if(isEdit && !canEditTask(t)){editingTaskId="";return `<div class="card"><h2>دسترسی غیرمجاز</h2><p class="muted">فقط مدیرعامل یا ایجادکننده وظیفه می‌تواند آن را ویرایش کند.</p></div>`;}
-  return `<div class="card"><h2>${isEdit?"ویرایش وظیفه":"وظیفه جدید"}</h2><div class="form-grid"><div class="full"><label>عنوان</label><input id="taskTitle" value="${esc(t?.title||"")}"></div><div><label>مسئول اجرا</label>${userSelect("taskExecutor",t?.executorId)}</div><div><label>مهلت شمسی</label><input id="taskDue" data-date-input value="${formatJalali(t?.dueDate||todayJalali())}" readonly></div><div><label>بخش / واحد سازمانی</label>${simpleSelect("taskDept",db.departments,t?.department)}</div><div><label>محل</label>${simpleSelect("taskLocation",db.locations,t?.location)}</div><div><label>نوع</label>${simpleSelect("taskType",["روزانه","هفتگی","ماهانه","سالیانه","تاریخ مشخص","فوری","بازدیدی","PM"],t?.type)}</div><div><label>اولویت</label>${simpleSelect("taskPriority",["عادی","بالا","بحرانی"],t?.priority)}</div><div><label>تجهیزات مرتبط</label>${assetSelect("taskAsset",t?.assetId)}</div><div><label>نیاز به عکس؟</label>${simpleSelect("taskPhoto",["خیر","بله"],t?.needPhoto?"بله":"خیر")}</div><div class="full"><label>پیگیرها / ناظرها</label>${multiUserCheckboxes("watchers",t?.watcherIds||[])}</div><div class="full"><label>شرح کار</label><textarea id="taskDesc">${esc(t?.description||"")}</textarea></div></div><div class="actions"><button class="btn primary full" id="saveTask">${isEdit?"ذخیره ویرایش":"ثبت وظیفه"}</button>${isEdit?`<button class="btn gray full" id="cancelEdit">انصراف</button>`:""}</div></div>`;
+  return `<div class="card"><h2>${isEdit?"ویرایش وظیفه":"وظیفه جدید"}</h2><div class="form-grid"><div class="full"><label>عنوان</label><input id="taskTitle" value="${esc(t?.title||"")}"></div><div><label>مسئول اجرا</label>${userSelect("taskExecutor",t?.executorId)}</div><div><label>نوع</label>${simpleSelect("taskType",["روزانه","هفتگی","ماهانه","سالیانه","تاریخ مشخص","فوری","بازدیدی","PM"],t?.type)}</div>${scheduleFields(t)}<div><label>بخش / واحد سازمانی</label>${simpleSelect("taskDept",db.departments,t?.department)}</div><div><label>محل</label>${simpleSelect("taskLocation",db.locations,t?.location)}</div><div><label>اولویت</label>${simpleSelect("taskPriority",["عادی","بالا","بحرانی"],t?.priority)}</div><div><label>تجهیزات مرتبط</label>${assetSelect("taskAsset",t?.assetId)}</div><div><label>نیاز به عکس؟</label>${simpleSelect("taskPhoto",["خیر","بله"],t?.needPhoto?"بله":"خیر")}</div><div class="full"><label>پیگیرها / ناظرها</label>${multiUserCheckboxes("watchers",t?.watcherIds||[])}</div><div class="full"><label>شرح کار</label><textarea id="taskDesc">${esc(t?.description||"")}</textarea></div></div><div class="actions"><button class="btn primary full" id="saveTask">${isEdit?"ذخیره ویرایش":"ثبت وظیفه"}</button>${isEdit?`<button class="btn gray full" id="cancelEdit">انصراف</button>`:""}</div></div>`;
 }
 function userSelect(id,selected=""){return `<select id="${id}">${db.users.filter(u=>u.active).map(u=>`<option value="${u.id}" ${selected===u.id?'selected':''}>${esc(u.name)} - ${esc(u.role)}</option>`).join("")}</select>`;}
 function assetSelect(id,selected=""){return `<select id="${id}"><option value="">بدون دستگاه</option>${db.assets.map(a=>`<option value="${a.id}" ${selected===a.id?'selected':''}>${esc(a.name)}</option>`).join("")}</select>`;}
 function simpleSelect(id,arr,selected=""){return `<select id="${id}">${arr.map(x=>`<option value="${esc(x)}" ${selected===x?'selected':''}>${esc(x)}</option>`).join("")}</select>`;}
 function multiUserCheckboxes(name,selected=[]){return `<div class="checkbox-grid">${db.users.filter(u=>u.active).map(u=>`<label><input type="checkbox" name="${name}" value="${u.id}" ${selected.includes(u.id)?'checked':''}> <span>${esc(u.name)}</span></label>`).join("")}</div>`;}
+function timeInput(id,value="09:00"){return `<input id="${id}" type="time" value="${esc(value||"09:00")}">`;}
+function dayOfWeekSelect(id,selected="0"){const days=["شنبه","یکشنبه","دوشنبه","سه‌شنبه","چهارشنبه","پنجشنبه","جمعه"];return `<select id="${id}">${days.map((d,i)=>`<option value="${i}" ${String(selected)===String(i)?'selected':''}>${d}</option>`).join("")}</select>`;}
+function dayOfMonthSelect(id,selected="1"){return `<select id="${id}">${Array.from({length:31},(_,i)=>i+1).map(d=>`<option value="${d}" ${String(selected)===String(d)?'selected':''}>${toPersianDigits(d)}</option>`).join("")}</select>`;}
+function addJalaliDays(date,days){let [y,m,d]=date.split("/").map(Number);d+=days;while(d>jalaliMonthLength(y,m)){d-=jalaliMonthLength(y,m);m++;if(m>12){m=1;y++;}}while(d<1){m--;if(m<1){m=12;y--;}d+=jalaliMonthLength(y,m);}return `${y}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;}
+function jalaliWeekDay(date){const [y,m,d]=date.split("/").map(Number);return getWeekIndex(y,m,d);}
+function nextWeeklyDate(day){const today=todayJalali();const cur=jalaliWeekDay(today);let diff=(Number(day)-cur+7)%7;return addJalaliDays(today,diff);}
+function nextMonthlyDate(day){let [y,m]=todayJalali().split("/").map(Number);let d=Math.min(Number(day)||1,jalaliMonthLength(y,m));let candidate=`${y}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;if(compareJalali(candidate,todayJalali())<0){m++;if(m>12){m=1;y++;}d=Math.min(Number(day)||1,jalaliMonthLength(y,m));candidate=`${y}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;}return candidate;}
+function scheduleFields(t={}){
+  const meta=t.schedule||{};
+  return `<div class="full schedule-box">
+    <div id="dateWrap"><label>تاریخ مشخص</label><input id="taskDue" data-date-input value="${formatJalali(t?.dueDate||todayJalali())}" readonly></div>
+    <div id="timeWrap"><label>ساعت</label>${timeInput("taskTime",meta.time||"09:00")}</div>
+    <div id="weekWrap"><label>روز هفته</label>${dayOfWeekSelect("taskWeekDay",meta.weekDay??"0")}</div>
+    <div id="monthWrap"><label>روز ماه</label>${dayOfMonthSelect("taskMonthDay",meta.monthDay||"1")}</div>
+    <div class="schedule-help" id="scheduleHelp"></div>
+  </div>`;
+}
+function refreshScheduleUI(){
+  const type=val("taskType");
+  const dateWrap=document.getElementById("dateWrap"), timeWrap=document.getElementById("timeWrap"), weekWrap=document.getElementById("weekWrap"), monthWrap=document.getElementById("monthWrap"), help=document.getElementById("scheduleHelp");
+  if(!dateWrap||!timeWrap||!weekWrap||!monthWrap)return;
+  dateWrap.style.display="none"; timeWrap.style.display="block"; weekWrap.style.display="none"; monthWrap.style.display="none";
+  let text="";
+  if(type==="روزانه"){ text="هر روز در ساعت انتخاب‌شده تکرار می‌شود."; }
+  else if(type==="هفتگی"){ weekWrap.style.display="block"; text="هر هفته در روز و ساعت انتخاب‌شده تکرار می‌شود."; }
+  else if(type==="ماهانه"){ monthWrap.style.display="block"; text="هر ماه در روز و ساعت انتخاب‌شده تکرار می‌شود."; }
+  else { dateWrap.style.display="block"; text="برای این نوع، تاریخ مشخص و ساعت ثبت می‌شود."; }
+  help.textContent=text;
+}
 
 function dailyHTML(){
   const myReports=db.dailyReports.filter(r=>r.userId===currentUserId);
@@ -162,20 +191,22 @@ function reportsHTML(){
 }
 
 function bindEvents(){
+  const view=document.getElementById("view");
+  if(view){
+    view.onclick=(e)=>{
+      const kpiBtn=e.target.closest("[data-dash-filter]");
+      if(kpiBtn){e.preventDefault();dashboardFilter=kpiBtn.dataset.dashFilter;renderView();return;}
+    };
+  }
   document.querySelectorAll("[data-menu]").forEach(btn=>btn.onclick=(e)=>{e.stopPropagation();document.querySelectorAll(".action-menu").forEach(m=>m.classList.remove("show"));document.getElementById("menu_"+btn.dataset.menu)?.classList.toggle("show");});
   document.body.onclick=()=>document.querySelectorAll(".action-menu").forEach(m=>m.classList.remove("show"));
   document.querySelectorAll("[data-detail]").forEach(el=>el.onclick=e=>{e.stopPropagation();showDetail(el.dataset.detail);});
   document.querySelectorAll("[data-done]").forEach(el=>el.onclick=e=>{e.stopPropagation();markDone(el.dataset.done);});
   document.querySelectorAll("[data-edit]").forEach(el=>el.onclick=e=>{e.stopPropagation();editingTaskId=el.dataset.edit;currentView="newTask";render();});
   document.querySelectorAll("[data-delete]").forEach(el=>el.onclick=e=>{e.stopPropagation();deleteTask(el.dataset.delete);});
-  document.querySelectorAll("[data-dash-filter]").forEach(btn=>{
-    btn.addEventListener("click", (e)=>{
-      e.preventDefault();
-      e.stopPropagation();
-      dashboardFilter = btn.dataset.dashFilter;
-      renderView();
-    }, true);
-  });
+  const typeSelect=document.getElementById("taskType"); if(typeSelect){typeSelect.onchange=refreshScheduleUI; refreshScheduleUI();}
+  const weekDay=document.getElementById("taskWeekDay"); if(weekDay) weekDay.onchange=refreshScheduleUI;
+  const monthDay=document.getElementById("taskMonthDay"); if(monthDay) monthDay.onchange=refreshScheduleUI;
   const reportSearchInput=document.getElementById("reportSearch"); if(reportSearchInput){reportSearchInput.oninput=()=>{reportSearch=reportSearchInput.value.trim();renderView();};}
   document.querySelectorAll("[data-date-input]").forEach(inp=>inp.onclick=()=>openDatePicker(inp.id));
   const saveTask=document.getElementById("saveTask"); if(saveTask) saveTask.onclick=saveTaskAction;
@@ -188,16 +219,30 @@ function bindEvents(){
   bindPickerEvents();
 }
 
+function buildSchedule(){
+  const type=val("taskType");
+  const time=val("taskTime")||"09:00";
+  const weekDay=val("taskWeekDay")||"0";
+  const monthDay=val("taskMonthDay")||"1";
+  let due=normalizeJalali(val("taskDue"))||todayJalali();
+  if(type==="روزانه") due=todayJalali();
+  if(type==="هفتگی") due=nextWeeklyDate(weekDay);
+  if(type==="ماهانه") due=nextMonthlyDate(monthDay);
+  return {due,schedule:{type,time,weekDay,monthDay}};
+}
 function saveTaskAction(){
-  const due=normalizeJalali(val("taskDue")); if(!due){alert("تاریخ شمسی درست نیست.");return;}
+  const built=buildSchedule();
+  const due=built.due;
+  if(!due){alert("تاریخ شمسی درست نیست.");return;}
   if(!val("taskTitle").trim()){alert("عنوان وظیفه را بنویس.");return;}
   const watcherIds=[...document.querySelectorAll('input[name="watchers"]:checked')].map(x=>x.value);
+  const payload={title:val("taskTitle"),description:val("taskDesc"),executorId:val("taskExecutor"),watcherIds,department:val("taskDept"),location:val("taskLocation"),assetId:val("taskAsset"),priority:val("taskPriority"),type:val("taskType"),dueDate:due,dueTime:built.schedule.time,schedule:built.schedule,needPhoto:val("taskPhoto")==="بله"};
   if(editingTaskId){
-    const t=db.tasks.find(x=>x.id===editingTaskId); if(!t||!canEditTask(t)){alert("اجازه ادیت نداری.");return;}
-    Object.assign(t,{title:val("taskTitle"),description:val("taskDesc"),executorId:val("taskExecutor"),watcherIds,department:val("taskDept"),location:val("taskLocation"),assetId:val("taskAsset"),priority:val("taskPriority"),type:val("taskType"),dueDate:due,needPhoto:val("taskPhoto")==="بله"});
+    const t=db.tasks.find(x=>x.id===editingTaskId); if(!t||!canEditTask(t)){alert("اجازه ویرایش نداری.");return;}
+    Object.assign(t,payload);
     t.logs=t.logs||[]; t.logs.push({at:nowText(),by:currentUserId,action:"ویرایش"}); editingTaskId="";
   }else{
-    db.tasks.unshift({id:uid("t"),title:val("taskTitle"),description:val("taskDesc"),creatorId:currentUserId,executorId:val("taskExecutor"),watcherIds,department:val("taskDept"),location:val("taskLocation"),assetId:val("taskAsset"),priority:val("taskPriority"),type:val("taskType"),dueDate:due,needPhoto:val("taskPhoto")==="بله",status:"open",doneAt:"",doneNote:"",createdAt:nowText(),logs:[{at:nowText(),by:currentUserId,action:"ایجاد"}]});
+    db.tasks.unshift({id:uid("t"),...payload,creatorId:currentUserId,status:"open",doneAt:"",doneNote:"",createdAt:nowText(),logs:[{at:nowText(),by:currentUserId,action:"ایجاد"}]});
   }
   saveDB(db);currentView="tasks";render();
 }
