@@ -73,7 +73,7 @@ function render(){
       <div class="drawer-nav"><button id="logoutBtn"><span class="drawer-icon">${icon("logout")}</span><span>خروج</span></button></div>
     </aside>
     <header class="topbar">
-      <div class="toprow"><div></div><div class="title"><h1>TAK Duty Control</h1><small>سبک تلگرام، وظایف و گزارش کارخانه</small></div><button class="icon-btn" id="menuBtn">${icon("menu")}</button></div>
+      <div class="toprow"><button class="icon-btn" id="menuBtn">${icon("menu")}</button><div class="title"><h1>TAK Duty Control</h1><small>سبک تلگرام، وظایف و گزارش کارخانه</small></div><div></div></div>
       <div class="userline">${esc(currentUser().name)} • ${esc(currentUser().role)}</div>
     </header>
     <main class="main" id="view"></main>
@@ -150,6 +150,7 @@ function jalaliWeekDay(date){const [y,m,d]=date.split("/").map(Number);return ge
 function nextWeeklyDate(day){const today=todayJalali();const cur=jalaliWeekDay(today);let diff=(Number(day)-cur+7)%7;return addJalaliDays(today,diff);}
 function nextMonthlyDate(day){let [y,m]=todayJalali().split("/").map(Number);let d=Math.min(Number(day)||1,jalaliMonthLength(y,m));let candidate=`${y}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;if(compareJalali(candidate,todayJalali())<0){m++;if(m>12){m=1;y++;}d=Math.min(Number(day)||1,jalaliMonthLength(y,m));candidate=`${y}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;}return candidate;}
 function scheduleFields(t={}){
+  t = t || {};
   const meta=t.schedule||{};
   return `<div class="full schedule-box">
     <div id="dateWrap"><label>تاریخ مشخص</label><input id="taskDue" data-date-input value="${formatJalali(t?.dueDate||todayJalali())}" readonly></div>
@@ -176,7 +177,21 @@ function dailyHTML(){
   const myReports=db.dailyReports.filter(r=>r.userId===currentUserId);
   const q=reportSearch.trim();
   const filteredReports=q?myReports.filter(r=>(r.type||"").includes(q)||(r.text||"").includes(q)||formatJalali(r.date).includes(q)):myReports;
-  return `<div class="card"><h2>گزارش روزانه</h2><div class="form-grid"><div><label>تاریخ شمسی</label><input id="repDate" data-date-input value="${formatJalali(todayJalali())}" readonly></div><div><label>نوع گزارش</label>${simpleSelect("repType",["عمومی","فروش","تعمیرات","نگهبانی","تولید","منابع انسانی"])}</div><div class="full"><label>شرح گزارش</label><textarea id="repText" placeholder="شرح گزارش را بنویس..."></textarea></div></div><div class="actions"><button class="btn primary full" id="saveReport">ثبت گزارش</button></div></div><div class="card"><h2>گزارش‌های من</h2><input id="reportSearch" class="search-input" placeholder="جستجو در نوع، شرح یا تاریخ..." value="${esc(reportSearch)}">${dailyTable(filteredReports)}</div>`;
+  const todayReports=myReports.filter(r=>r.date===todayJalali());
+  const printBtn=todayReports.length?`<button class="btn primary" id="printToday" style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>پرینت امروز</button>`:"";
+  return `<div class="card"><h2>گزارش روزانه</h2><div class="form-grid"><div><label>تاریخ شمسی</label><input id="repDate" data-date-input value="${formatJalali(todayJalali())}" readonly></div><div><label>نوع گزارش</label>${simpleSelect("repType",["عمومی","فروش","تعمیرات","نگهبانی","تولید","منابع انسانی"])}</div><div class="full"><label>شرح گزارش</label><textarea id="repText" placeholder="شرح گزارش را بنویس..."></textarea></div></div><div class="actions"><button class="btn primary full" id="saveReport">ثبت گزارش</button></div></div><div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">گزارش‌های من</h2>${printBtn}</div><input id="reportSearch" class="search-input" placeholder="جستجو در نوع، شرح یا تاریخ..." value="${esc(reportSearch)}">${dailyTable(filteredReports)}</div>`;
+}
+
+function printTodayReport(){
+  const todayReports=db.dailyReports.filter(r=>r.userId===currentUserId&&r.date===todayJalali());
+  if(!todayReports.length){alert("گزارشی برای امروز ثبت نشده.");return;}
+  const u=currentUser();
+  const rows=todayReports.map(r=>`<div style="border:1px solid #ddd;border-radius:8px;padding:14px;margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;font-weight:bold;color:#0d356d;"><span>${esc(r.type||'-')}</span><span>${formatJalali(r.date)}</span></div><div style="line-height:2;white-space:pre-wrap;font-size:14px;">${esc(r.text||'-')}</div></div>`).join("");
+  const win=window.open("","_blank");
+  win.document.write(`<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"><title>گزارش کار امروز</title><style>body{font-family:Tahoma,Arial,sans-serif;padding:28px;color:#172033;direction:rtl;max-width:700px;margin:auto;}h2{color:#0d356d;border-bottom:2px solid #2AABEE;padding-bottom:8px;margin-bottom:6px;}.meta{color:#6b7a90;font-size:13px;margin-bottom:22px;}@media print{body{padding:10px}}</style></head><body><h2>گزارش کار روزانه</h2><div class="meta">پرسنل: ${esc(u.name)} &nbsp;|&nbsp; سمت: ${esc(u.role)} &nbsp;|&nbsp; تاریخ: ${formatJalali(todayJalali())}</div>${rows}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(),400);
 }
 function dailyTable(rows){
   if(!rows.length) return `<div class="muted empty-state">گزارشی وجود ندارد.</div>`;
@@ -212,6 +227,7 @@ function bindEvents(){
   const saveTask=document.getElementById("saveTask"); if(saveTask) saveTask.onclick=saveTaskAction;
   const cancelEdit=document.getElementById("cancelEdit"); if(cancelEdit) cancelEdit.onclick=()=>{editingTaskId="";currentView="tasks";render();};
   const saveReport=document.getElementById("saveReport"); if(saveReport) saveReport.onclick=saveReportAction;
+  const printToday=document.getElementById("printToday"); if(printToday) printToday.onclick=printTodayReport;
   const savePerson=document.getElementById("savePerson"); if(savePerson) savePerson.onclick=()=>{db.users.push({id:uid("u"),name:val("personName"),role:val("personRole"),department:val("personDept"),managerId:val("personManager"),level:val("personLevel"),active:true});saveDB(db);renderView();};
   const saveAsset=document.getElementById("saveAsset"); if(saveAsset) saveAsset.onclick=()=>{db.assets.push({id:uid("a"),name:val("assetName"),code:val("assetCode"),location:val("assetLoc"),responsibleId:val("assetResp")});saveDB(db);renderView();};
   const savePM=document.getElementById("savePM"); if(savePM) savePM.onclick=()=>{db.pmTemplates.push({id:uid("pm"),assetId:val("pmAsset"),title:val("pmTitle"),frequency:val("pmFreq"),executorId:val("pmExec"),needPhoto:true,checklist:val("pmChecklist").split(",").map(x=>x.trim()).filter(Boolean),lastGenerated:""});saveDB(db);renderView();};
