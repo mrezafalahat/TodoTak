@@ -1,10 +1,1 @@
-{
-  "name": "TAK Duty Control",
-  "short_name": "TAK Duty",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f4f5fb",
-  "theme_color": "#4f6df5",
-  "dir": "rtl",
-  "lang": "fa"
-}
+{"name":"TodoTak","short_name":"TodoTak","start_url":"./index.html","display":"standalone","background_color":"#f3f4fb","theme_color":"#f3f4fb","dir":"rtl","lang":"fa"}

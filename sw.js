@@ -1,4 +1,5 @@
-const CACHE='tak-duty-v6';
-const ASSETS=['./','./index.html','./styles.css','./app.js','./manifest.json','./icon.svg'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+const CACHE='todotak-v8';
+const ASSETS=['./','./index.html','./styles.css','./js/app.js','./manifest.webmanifest'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
