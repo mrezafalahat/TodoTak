@@ -1,53 +1,67 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f4f5fb" />
-  <title>TAK Duty Control</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f4fb">
+<title>TAK Duty Control</title>
+<style>
+:root{--bg:#f3f4fb;--card:#fff;--text:#1f2329;--muted:#8d95a3;--blue:#4d79ff;--green:#19a974;--red:#ff4d4f;--line:#edf0f6;--shadow:0 16px 45px rgba(30,38,60,.08);--r:26px}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;min-height:100%;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:Tahoma,Arial,sans-serif}button,input,textarea,select{font-family:inherit}.app{width:100%;max-width:520px;min-height:100vh;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(104px + env(safe-area-inset-bottom));position:relative}.topbar{height:72px;display:flex;align-items:center;gap:12px;direction:ltr}.topbar h1{flex:1;margin:0;text-align:left;font-size:32px;font-weight:900;letter-spacing:-.5px}.top-icon{width:46px;height:46px;border:0;background:transparent;font-size:32px;display:grid;place-items:center;color:#20242b}.view{width:100%}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 18px}.stat{height:84px;background:var(--card);border:1px solid #e6ebf3;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 8px 25px rgba(30,38,60,.04)}.stat b{font-size:26px;color:#2377a8}.stat span{font-size:13px;color:var(--muted);margin-top:4px}.panel{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin:16px 0}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.panel-head h2{margin:0;font-size:22px}.link-btn{border:0;background:#f3f6ff;color:var(--blue);border-radius:14px;padding:8px 12px}.search{width:100%;height:54px;border:1px solid #e2e7f0;border-radius:20px;background:#fff;padding:0 18px;font-size:17px;outline:0;margin-bottom:14px}.todo-card{background:#fff;border-radius:30px;box-shadow:var(--shadow);padding:18px 12px;margin-top:8px}.group-title{direction:ltr;text-align:left;font-size:22px;font-weight:900;margin:8px 14px 4px;color:#333}.task-row{direction:ltr;display:grid;grid-template-columns:42px 1fr;gap:12px;padding:16px 8px;border-bottom:1px solid var(--line);align-items:start}.task-row:last-child{border-bottom:0}.check{width:31px;height:31px;margin-top:5px;border:3px solid #b9bcc2;border-radius:10px;background:#fff;color:white;font-size:20px;line-height:1;display:grid;place-items:center}.check.done{background:var(--blue);border-color:var(--blue)}.task-main{direction:rtl;text-align:right;min-width:0}.task-title{font-size:21px;font-weight:500;line-height:1.75;word-break:break-word;white-space:normal}.task-title.done{text-decoration:line-through;color:#979da8}.task-desc{font-size:14px;line-height:1.7;color:#6e7480;margin-top:2px;white-space:pre-wrap}.task-meta{display:flex;direction:ltr;justify-content:space-between;gap:10px;margin-top:4px}.date-blue{font-size:18px;color:var(--blue);white-space:nowrap}.inbox{font-size:17px;color:#9097a4;white-space:nowrap}.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-start;margin-top:8px;direction:rtl}.chip{font-size:12px;color:#697080;background:#f2f4f8;border-radius:999px;padding:5px 10px}.actions{display:flex;gap:7px;justify-content:flex-start;margin-top:8px}.mini{border:0;border-radius:13px;background:#f3f5fa;color:#61708a;padding:7px 10px;font-size:12px}.mini.red{color:var(--red)}.report-item{background:#fff;border-radius:22px;box-shadow:0 8px 24px rgba(30,38,60,.06);padding:16px;margin:10px 0}.report-text{font-size:18px;line-height:1.9;white-space:pre-wrap}.report-meta{font-size:13px;color:var(--muted);margin-top:8px}.empty{text-align:center;color:var(--muted);padding:34px 8px;font-size:16px}.fab{position:fixed;right:max(24px,calc((100vw - 520px)/2 + 24px));bottom:calc(94px + env(safe-area-inset-bottom));width:74px;height:74px;border-radius:50%;border:0;background:var(--blue);color:#fff;font-size:48px;box-shadow:0 16px 32px rgba(77,121,255,.35);z-index:20;display:grid;place-items:center}.bottom-nav{position:fixed;left:0;right:0;bottom:0;height:84px;padding-bottom:env(safe-area-inset-bottom);background:#fff;box-shadow:0 -12px 35px rgba(30,38,60,.08);display:flex;justify-content:center;z-index:15}.nav-wrap{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);padding:6px 10px}.nav-item{border:0;background:transparent;color:#8b93a0;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:27px}.nav-item small{font-size:13px}.nav-item.active{color:var(--blue);background:#eef4ff}.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;z-index:30;transition:.2s}.backdrop.show{opacity:1;pointer-events:auto}.sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:#fff;border-radius:30px 30px 0 0;z-index:40;transform:translateY(110%);transition:.25s;box-shadow:0 -20px 60px rgba(0,0,0,.20);padding:20px 18px calc(18px + env(safe-area-inset-bottom));direction:rtl}.sheet.show{transform:translateY(0)}.sheet-title{width:100%;border:0;outline:0;font-size:24px;line-height:1.6;color:#222;text-align:right;padding:4px 0}.sheet-title::placeholder,.sheet-desc::placeholder{color:#c6cad1}.sheet-desc{width:100%;border:0;outline:0;resize:none;font-size:18px;line-height:1.7;text-align:right;padding:4px 0}.tools{display:flex;gap:9px;align-items:center;overflow-x:auto;padding-top:10px}.tool{height:42px;border:0;border-radius:17px;background:#f1f3f7;color:#555;padding:0 12px;font-size:14px;white-space:nowrap;display:flex;gap:6px;align-items:center}.submit{margin-right:auto;background:var(--blue);color:white;font-weight:800;padding:0 18px}.picker-box{display:none;grid-template-columns:1fr;gap:10px;margin-top:12px;background:#f7f8fb;border-radius:18px;padding:12px}.picker-box.show{display:grid}.picker-box label{font-size:13px;color:#777;display:grid;gap:5px}.picker-box input,.picker-box select{height:42px;border:1px solid #dce2ec;border-radius:14px;padding:0 10px;font-size:16px;background:#fff}.toast{position:fixed;left:50%;bottom:calc(180px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#20242b;color:#fff;border-radius:999px;padding:10px 16px;font-size:14px;z-index:80;opacity:0;pointer-events:none;transition:.2s;white-space:nowrap}.toast.show{opacity:1}@media(max-width:390px){.app{padding-left:12px;padding-right:12px}.topbar h1{font-size:29px}.task-title{font-size:20px}.stats{gap:7px}.stat{height:74px}.fab{width:66px;height:66px;font-size:42px}.sheet-title{font-size:22px}}
+</style>
 </head>
 <body>
-  <div id="app" class="app">
-    <header class="topbar">
-      <button class="icon-btn" id="menuBtn" aria-label="menu">☰</button>
-      <h1 id="pageTitle">خانه</h1>
-      <button class="icon-btn" id="notifBtn" aria-label="notifications">💡</button>
-    </header>
-
-    <main id="view" class="view"></main>
-
-    <button id="fab" class="fab" aria-label="add">＋</button>
-
-    <nav class="bottom-nav">
-      <button data-page="home" class="nav-item active"><span>⌂</span><small>خانه</small></button>
-      <button data-page="tasks" class="nav-item"><span>☑</span><small>وظایف</small></button>
-      <button data-page="reports" class="nav-item"><span>▣</span><small>گزارش من</small></button>
-    </nav>
-  </div>
-
-  <div id="sheetBackdrop" class="sheet-backdrop"></div>
-  <section id="quickSheet" class="quick-sheet" aria-hidden="true">
-    <form id="quickForm" autocomplete="off">
-      <input id="quickTitle" class="quick-title" placeholder="چه کاری باید انجام شود؟" />
-      <textarea id="quickDesc" class="quick-desc" placeholder="توضیحات" rows="2"></textarea>
-      <div class="quick-tools">
-        <button type="button" id="pickDate" class="tool-btn">📅<span id="dateLabel">امروز</span></button>
-        <button type="button" id="pickPerson" class="tool-btn">🚩<span id="personLabel">محمدرضا</span></button>
-        <button type="button" id="pickTime" class="tool-btn">⏰<span id="timeLabel">بدون ساعت</span></button>
-        <button type="submit" class="send-btn">ثبت</button>
-      </div>
-      <div id="pickers" class="pickers hidden">
-        <label>تاریخ<input id="dateInput" type="date"></label>
-        <label>ساعت<input id="timeInput" type="time"></label>
-        <label>مسئول<input id="personInput" type="text" placeholder="نام مسئول"></label>
-      </div>
-    </form>
-  </section>
-
-  <template id="emptyTpl"><div class="empty">چیزی ثبت نشده.</div></template>
-
-  <script src="app.js"></script>
+<div class="app">
+<header class="topbar"><button class="top-icon" id="menuBtn">☰</button><h1 id="pageTitle">Today</h1><button class="top-icon" id="notifBtn">💡</button></header>
+<main id="view" class="view"></main>
+<button id="fab" class="fab">＋</button>
+</div>
+<nav class="bottom-nav"><div class="nav-wrap"><button class="nav-item active" data-page="home"><span>⌂</span><small>خانه</small></button><button class="nav-item" data-page="tasks"><span>☑</span><small>وظایف</small></button><button class="nav-item" data-page="reports"><span>▣</span><small>گزارش من</small></button></div></nav>
+<div id="backdrop" class="backdrop"></div>
+<section id="sheet" class="sheet"><form id="form"><input id="titleInput" class="sheet-title" placeholder="چه کاری باید انجام شود؟"><textarea id="descInput" class="sheet-desc" rows="2" placeholder="توضیحات"></textarea><div class="tools"><button type="button" class="tool" id="dateBtn">📅 <span id="dateLabel">امروز</span></button><button type="button" class="tool" id="personBtn">🚩 <span id="personLabel">محمدرضا</span></button><button type="button" class="tool" id="timeBtn">⏰ <span id="timeLabel">بدون ساعت</span></button><button type="submit" class="tool submit">ثبت</button></div><div id="pickers" class="picker-box"><label>تاریخ<input type="date" id="dateInput"></label><label>ساعت یادآوری<input type="time" id="timeInput"></label><label>مسئول<input type="text" id="personInput" placeholder="مثلاً محمدرضا"></label></div></form></section>
+<div id="toast" class="toast"></div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const K_TASKS='tak_duty_tasks_v7', K_REPORTS='tak_duty_reports_v7';
+let page='home', mode='task', editId=null, curDate=todayISO(), curTime='', curPerson='محمدرضا';
+let tasks=read(K_TASKS,null), reports=read(K_REPORTS,[]); if(!tasks){tasks=seed(); writeAll();}
+function read(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function writeAll(){localStorage.setItem(K_TASKS,JSON.stringify(tasks));localStorage.setItem(K_REPORTS,JSON.stringify(reports));scheduleNotifications()}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function faDate(iso){if(!iso)return 'بدون تاریخ';try{return new Intl.DateTimeFormat('fa-IR-u-ca-persian',{month:'numeric',day:'numeric'}).format(new Date(iso+'T00:00:00'))}catch(e){return iso}}
+function dayLabel(iso){return iso===todayISO()?'Today':faDate(iso)}
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function seed(){const list=['پیگیری بار آلومینیوم گمرک','پیگیری ارز خریداری شده','پیگیری و تعیین تکلیف پول برداشت شده بیمه','تمدید ضمانت نامه های بارها','پیگیری ارز گرفته شده که چرا تو سیستم ثبت نشده بانک صنعت و معدن','امضا پروفرما خانم اشراقی','ثبت سفارش ها اصلاح شود بارهایی که ارز آن گرفته شده'];return list.map(x=>({id:id(),title:x,desc:'',date:todayISO(),time:'',person:'محمدرضا',done:false,createdAt:Date.now()}))}
+function setPage(p){page=p;render()}
+function render(){ $$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page)); $('#pageTitle').textContent=page==='home'?'Today':page==='tasks'?'All':'گزارش من'; $('#fab').style.display=page==='home'?'none':'grid'; if(page==='home')home(); if(page==='tasks')tasksPage(); if(page==='reports')reportsPage(); }
+function home(){const open=tasks.filter(t=>!t.done).length, done=tasks.filter(t=>t.done).length, today=tasks.filter(t=>!t.done&&t.date===todayISO()).length, late=tasks.filter(t=>!t.done&&t.date&&t.date<todayISO()).length; $('#view').innerHTML=`<div class="stats"><div class="stat"><b>${open}</b><span>باز</span></div><div class="stat"><b>${today}</b><span>امروز</span></div><div class="stat"><b>${late}</b><span>عقب افتاده</span></div><div class="stat"><b>${done}</b><span>انجام</span></div></div><section class="panel"><div class="panel-head"><h2>وظایف امروز</h2><button class="link-btn" onclick="setPage('tasks')">همه</button></div>${taskList(tasks.filter(t=>!t.done&&t.date===todayISO()).slice(0,5))}</section><section class="panel"><div class="panel-head"><h2>گزارش امروز</h2><button class="link-btn" onclick="setPage('reports')">همه</button></div>${reports.filter(r=>r.date===todayISO()).map(reportHTML).join('')||'<div class="empty">گزارشی وجود ندارد.</div>'}</section>`}
+function tasksPage(){ $('#view').innerHTML=`<input id="searchTasks" class="search" placeholder="جستجو در وظایف..."><div class="todo-card"><div class="group-title">TODAY <span style="float:right;color:#999;font-weight:400">${tasks.filter(t=>!t.done).length}</span></div><div id="taskList"></div></div>`; $('#searchTasks').oninput=e=>paintTasks(e.target.value); paintTasks('') }
+function paintTasks(q){q=(q||'').trim().toLowerCase();let list=tasks.filter(t=>!q||[t.title,t.desc,t.person,t.date,t.time].join(' ').toLowerCase().includes(q));list.sort((a,b)=>(a.done-b.done)||((a.date||'9999')>(b.date||'9999')?1:-1)||b.createdAt-a.createdAt);$('#taskList').innerHTML=taskList(list)}
+function taskList(list){return list.length?list.map(taskHTML).join(''):'<div class="empty">وظیفه‌ای وجود ندارد.</div>'}
+function taskHTML(t){return `<div class="task-row"><button class="check ${t.done?'done':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</button><div class="task-main"><div class="task-title ${t.done?'done':''}">${esc(t.title)}</div>${t.desc?`<div class="task-desc">${esc(t.desc)}</div>`:''}<div class="task-meta"><span class="date-blue">${dayLabel(t.date)}</span><span class="inbox">Inbox</span></div><div class="chips"><span class="chip">${esc(t.person||'بدون مسئول')}</span>${t.time?`<span class="chip">⏰ ${esc(t.time)}</span>`:''}</div><div class="actions"><button class="mini" onclick="editTask('${t.id}')">ویرایش</button><button class="mini red" onclick="delTask('${t.id}')">حذف</button></div></div></div>`}
+function reportsPage(){ $('#view').innerHTML=`<input id="searchReports" class="search" placeholder="جستجو در گزارش من..."><div id="reportsList"></div>`; $('#searchReports').oninput=e=>paintReports(e.target.value); paintReports('') }
+function paintReports(q){q=(q||'').trim().toLowerCase();let list=reports.filter(r=>!q||[r.text,r.desc,r.person,r.date].join(' ').toLowerCase().includes(q));list.sort((a,b)=>b.createdAt-a.createdAt);$('#reportsList').innerHTML=list.map(reportHTML).join('')||'<div class="empty">گزارشی وجود ندارد.</div>'}
+function reportHTML(r){return `<div class="report-item"><div class="report-text">${esc(r.text)}</div>${r.desc?`<div class="task-desc">${esc(r.desc)}</div>`:''}<div class="report-meta">${faDate(r.date)} • ${esc(r.person||'محمدرضا')}</div><div class="actions"><button class="mini" onclick="editReport('${r.id}')">ویرایش</button><button class="mini red" onclick="delReport('${r.id}')">حذف</button></div></div>`}
+function toggleTask(i){const t=tasks.find(x=>x.id===i); if(t){t.done=!t.done;writeAll();render()}}
+function delTask(i){if(confirm('حذف شود؟')){tasks=tasks.filter(x=>x.id!==i);writeAll();render()}}
+function delReport(i){if(confirm('حذف شود؟')){reports=reports.filter(x=>x.id!==i);writeAll();render()}}
+function editTask(i){const t=tasks.find(x=>x.id===i); if(t)openSheet('task',t)}
+function editReport(i){const r=reports.find(x=>x.id===i); if(r)openSheet('report',r)}
+function openSheet(m,item){mode=m;editId=item?.id||null;curDate=item?.date||todayISO();curTime=item?.time||'';curPerson=item?.person||'محمدرضا';$('#titleInput').placeholder=m==='task'?'چه کاری باید انجام شود؟':'گزارش امروز را بنویسید...';$('#titleInput').value=item?(m==='task'?item.title:item.text):'';$('#descInput').value=item?.desc||'';$('#pickers').classList.remove('show');updateLabels();$('#backdrop').classList.add('show');$('#sheet').classList.add('show');setTimeout(()=>$('#titleInput').focus(),120)}
+function closeSheet(){ $('#backdrop').classList.remove('show');$('#sheet').classList.remove('show');editId=null }
+function updateLabels(){ $('#dateLabel').textContent=dayLabel(curDate);$('#timeLabel').textContent=curTime||'بدون ساعت';$('#personLabel').textContent=curPerson||'مسئول';$('#dateInput').value=curDate;$('#timeInput').value=curTime;$('#personInput').value=curPerson }
+function showPickers(focus){$('#pickers').classList.add('show');setTimeout(()=>$(focus).focus(),50)}
+$('#dateBtn').onclick=()=>showPickers('#dateInput'); $('#timeBtn').onclick=()=>showPickers('#timeInput'); $('#personBtn').onclick=()=>showPickers('#personInput');
+$('#dateInput').onchange=e=>{curDate=e.target.value||todayISO();updateLabels()}; $('#timeInput').onchange=e=>{curTime=e.target.value;updateLabels()}; $('#personInput').oninput=e=>{curPerson=e.target.value;updateLabels()};
+$('#fab').onclick=()=>openSheet(page==='reports'?'report':'task'); $('#backdrop').onclick=closeSheet; $$('.nav-item').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
+$('#form').onsubmit=e=>{e.preventDefault();const title=$('#titleInput').value.trim(),desc=$('#descInput').value.trim();if(!title)return toast('متن را وارد کن'); if(mode==='task'){if(editId){const t=tasks.find(x=>x.id===editId);Object.assign(t,{title,desc,date:curDate,time:curTime,person:curPerson})}else tasks.unshift({id:id(),title,desc,date:curDate,time:curTime,person:curPerson,done:false,createdAt:Date.now()})}else{if(editId){const r=reports.find(x=>x.id===editId);Object.assign(r,{text:title,desc,date:curDate,person:curPerson})}else reports.unshift({id:id(),text:title,desc,date:curDate,person:curPerson,createdAt:Date.now()})}writeAll();closeSheet();render()};
+$('#menuBtn').onclick=()=>toast('نسخه ساده: خانه، وظایف، گزارش من'); $('#notifBtn').onclick=async()=>{await askNotif();toast('اعلان‌ها فعال شد')};
+function toast(s){const t=$('#toast');t.textContent=s;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+async function askNotif(){if('Notification'in window&&Notification.permission==='default')await Notification.requestPermission()}
+let timers=[];function scheduleNotifications(){timers.forEach(clearTimeout);timers=[];tasks.filter(t=>!t.done&&t.date&&t.time).forEach(t=>{const d=new Date(`${t.date}T${t.time}:00`).getTime()-Date.now();if(d>0&&d<2147483647)timers.push(setTimeout(()=>notify(t),d))})}
+function notify(t){if('Notification'in window&&Notification.permission==='granted')new Notification('TAK Duty Control',{body:t.title,tag:t.id});else toast('یادآوری: '+t.title)}
+scheduleNotifications();render();
+</script>
 </body>
 </html>
