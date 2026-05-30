@@ -1,253 +1,202 @@
-const DB_KEY = 'tak_duty_control_db_v2';
-const SESSION_KEY = 'tak_duty_control_session_v2';
-
-const $ = (id) => document.getElementById(id);
+const DB_KEY = 'tak_duty_control_db_v4_simple';
+const SESSION_KEY = 'tak_duty_control_session_v4';
+const $ = id => document.getElementById(id);
 const app = $('app');
+
 let db = loadDB();
-let currentUserId = getSession();
-let currentView = 'dashboard';
-let dashboardFilter = 'open';
-let editingTaskId = '';
-let editingReportId = '';
+let currentUserId = localStorage.getItem(SESSION_KEY) || 'u_admin';
+let view = 'home';
 let taskSearch = '';
 let reportSearch = '';
-let homeOpen = { tasks: true, reports: true };
+let editingTaskId = '';
+let editingReportId = '';
+let timers = [];
 
-function uid(prefix='id'){ return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`; }
+function uid(p='id'){ return `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`; }
 function esc(s=''){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function val(id){ return $(id)?.value || ''; }
 function checked(id){ return !!$(id)?.checked; }
-function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-function getSession(){ return localStorage.getItem(SESSION_KEY) || 'u_admin'; }
-function setSession(id){ localStorage.setItem(SESSION_KEY, id); }
-function clearSession(){ localStorage.removeItem(SESSION_KEY); }
-function currentUser(){ return db.users.find(u=>u.id===currentUserId); }
-function userName(id){ return db.users.find(u=>u.id===id)?.name || '-'; }
-function assetName(id){ return db.assets.find(a=>a.id===id)?.name || '-'; }
-function toEnglishDigits(input=''){ return String(input).replace(/[۰-۹]/g, d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)); }
-function toPersianDigits(input=''){ return String(input).replace(/[0-9]/g, d=>'۰۱۲۳۴۵۶۷۸۹'[d]); }
-function pad2(n){ return String(n).padStart(2,'0'); }
-function nowText(){ const d=new Date(); return `${formatJalali(todayJalali())} ${toPersianDigits(pad2(d.getHours()))}:${toPersianDigits(pad2(d.getMinutes()))}`; }
-function todayJalali(){ const f = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); return normalizeJalali(f) || '1405/01/01'; }
-function normalizeJalali(v=''){
-  v = toEnglishDigits(String(v).trim()).replace(/-/g,'/').replace(/[.]/g,'/').replace(/\s+/g,'');
-  const parts = v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if(!parts) return '';
-  const y=Number(parts[1]), m=Number(parts[2]), d=Number(parts[3]);
-  if(m<1 || m>12 || d<1 || d>31) return '';
-  return `${y}/${pad2(m)}/${pad2(d)}`;
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); scheduleNotifications(); }
+function user(){ return db.users.find(x => x.id === currentUserId) || db.users[0]; }
+function userName(id){ return db.users.find(x => x.id === id)?.name || 'بدون مسئول'; }
+function toEn(x=''){ return String(x).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)); }
+function toFa(x=''){ return String(x).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function div(a,b){ return Math.floor(a/b); }
+function g2j(gy,gm,gd){
+  const gdm=[0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy=(gy<=1600)?0:979; gy-=(gy<=1600)?621:1600;
+  let gy2=(gm>2)?gy+1:gy;
+  let days=365*gy+div(gy2+3,4)-div(gy2+99,100)+div(gy2+399,400)-80+gd+gdm[gm-1];
+  jy+=33*div(days,12053); days%=12053; jy+=4*div(days,1461); days%=1461;
+  if(days>365){ jy+=div(days-1,365); days=(days-1)%365; }
+  const jm=(days<186)?1+div(days,31):7+div(days-186,30);
+  const jd=1+((days<186)?days%31:(days-186)%30);
+  return [jy,jm,jd];
 }
-function formatJalali(v=''){ const n=normalizeJalali(v); if(!n) return toPersianDigits(v); const [y,m,d]=n.split('/'); return `${toPersianDigits(y)}/${toPersianDigits(m)}/${toPersianDigits(d)}`; }
-function compactJalali(v=''){ const n=normalizeJalali(v); if(!n) return '-'; const [,m,d]=n.split('/'); return `${toPersianDigits(Number(m))}/${toPersianDigits(Number(d))}`; }
-function compareJalali(a,b){ a=normalizeJalali(a); b=normalizeJalali(b); if(!a||!b) return 0; return a.localeCompare(b); }
-function addDays(date, days){ const d=new Date(); d.setDate(d.getDate()+Number(days||0)); return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {year:'numeric',month:'2-digit',day:'2-digit'}).format(d).replace(/\u200e/g,''); }
-function splitLines(text=''){ return String(text).split(/\n|،|,/).map(x=>x.trim()).filter(Boolean); }
-
-function seedDB(){
-  const u1='u_admin', u2='u_factory', u3='u_hall', u4='u_hr', u5='u_sales';
+function j2g(jy,jm,jd){
+  jy=+jy; jm=+jm; jd=+jd; let gy=(jy<=979)?621:1600; jy-=(jy<=979)?0:979;
+  let days=365*jy+div(jy,33)*8+div((jy%33)+3,4)+78+jd+(jm<7?(jm-1)*31:((jm-7)*30+186));
+  gy+=400*div(days,146097); days%=146097;
+  if(days>36524){ gy+=100*div(--days,36524); days%=36524; if(days>=365) days++; }
+  gy+=4*div(days,1461); days%=1461; if(days>365){ gy+=div(days-1,365); days=(days-1)%365; }
+  let gd=days+1; const sal=[0,31,((gy%4===0&&gy%100!==0)||gy%400===0)?29:28,31,30,31,30,31,31,30,31,30,31];
+  let gm=1; while(gm<=12 && gd>sal[gm]){ gd-=sal[gm]; gm++; }
+  return [gy,gm,gd];
+}
+function todayJ(){ const d=new Date(); const [y,m,day]=g2j(d.getFullYear(),d.getMonth()+1,d.getDate()); return `${y}/${pad(m)}/${pad(day)}`; }
+function normJ(v=''){
+  v=toEn(v).trim().replace(/[-.]/g,'/').replace(/\s+/g,'');
+  const m=v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/); if(!m) return '';
+  const y=+m[1], mo=+m[2], d=+m[3]; if(mo<1||mo>12||d<1||d>31) return '';
+  return `${y}/${pad(mo)}/${pad(d)}`;
+}
+function fmtJ(v=''){ const n=normJ(v); if(!n) return toFa(v); return toFa(n); }
+function compactJ(v=''){ const n=normJ(v); if(!n) return '-'; const [,m,d]=n.split('/'); return `${toFa(+m)}/${toFa(+d)}`; }
+function nowText(){ const d=new Date(); return `${fmtJ(todayJ())} ${toFa(pad(d.getHours()))}:${toFa(pad(d.getMinutes()))}`; }
+function dateObj(j, time='00:00'){
+  const n=normJ(j); if(!n) return null; const [jy,jm,jd]=n.split('/').map(Number); const [gy,gm,gd]=j2g(jy,jm,jd);
+  const [h,min]=toEn(time||'00:00').split(':').map(Number); return new Date(gy,gm-1,gd,h||0,min||0,0,0);
+}
+function isToday(j){ return normJ(j) === todayJ(); }
+function isLate(t){ if(t.status==='done' || t.type==='پیشرو') return false; const d = dateObj(t.dueDate, t.hasTime ? t.dueTime : '23:59'); return d && d < new Date(); }
+function statusText(t){ if(t.status==='done') return 'انجام شده'; if(isLate(t)) return 'عقب‌افتاده'; if(t.type==='پیشرو') return 'پیشرو'; return 'باز'; }
+function statusClass(t){ if(t.status==='done') return 'done'; if(isLate(t)) return 'late'; if(t.type==='پیشرو') return 'forward'; return 'open'; }
+function seed(){
+  const today = todayJ();
   return {
     users:[
-      {id:u1,name:'محمدرضا',role:'مدیرعامل',department:'مدیریت',managerId:'',level:'admin',active:true},
-      {id:u2,name:'مدیر کارخانه',role:'مدیر کارخانه',department:'تولید',managerId:u1,level:'manager',active:true},
-      {id:u3,name:'مدیر سالن',role:'مدیر سالن',department:'تولید',managerId:u2,level:'supervisor',active:true},
-      {id:u4,name:'منابع انسانی',role:'منابع انسانی',department:'اداری',managerId:u1,level:'hr',active:true},
-      {id:u5,name:'کارشناس فروش',role:'کارشناس فروش',department:'فروش',managerId:u1,level:'staff',active:true}
+      {id:'u_admin', name:'محمدرضا', role:'مدیرعامل'},
+      {id:'u_factory', name:'مدیر کارخانه', role:'مدیر کارخانه'},
+      {id:'u_sales', name:'فروش', role:'کارشناس فروش'},
+      {id:'u_office', name:'اداری', role:'اداری'}
     ],
-    departments:['مدیریت','فروش','تولید','نگهبانی','تعمیرات','منابع انسانی','مالی'],
-    locations:['دفتر فروش','سالن تولید','انبار','نگهبانی','واحد تعمیرات','دفتر مدیریت'],
-    assets:[{id:'a1',name:'دستگاه لمینت',code:'LAM-01',location:'سالن تولید',responsibleId:u2}],
-    pmTemplates:[],
     tasks:[
-      {id:'t1',title:'تماس با مشتری جدید',description:'پیگیری مشتری جدید و ثبت نتیجه.',creatorId:u1,executorId:u5,watcherIds:[u1],department:'فروش',location:'دفتر فروش',assetId:'',priority:'بالا',type:'روزانه',hasTime:true,dueDate:todayJalali(),dueTime:'09:00',needPhoto:false,status:'open',doneAt:'',doneNote:'',createdAt:nowText(),logs:[]},
-      {id:'t2',title:'بررسی نظم سالن',description:'بازدید کوتاه از وضعیت سالن.',creatorId:u1,executorId:u3,watcherIds:[u2],department:'تولید',location:'سالن تولید',assetId:'',priority:'عادی',type:'باید انجام شود / پیشرو',hasTime:false,dueDate:todayJalali(),dueTime:'',needPhoto:false,status:'open',doneAt:'',doneNote:'',createdAt:nowText(),logs:[]}
+      {id:uid('t'), title:'پیگیری بار آلومینیوم گمرک', description:'', executorId:'u_admin', type:'امروز', dueDate:today, hasTime:true, dueTime:'09:00', remind:true, repeatMinutes:30, status:'open', createdAt:nowText(), doneAt:''},
+      {id:uid('t'), title:'ثبت سفارش ها اصلاح شود بارهایی که ارز آن گرفته شده', description:'', executorId:'u_admin', type:'پیشرو', dueDate:today, hasTime:false, dueTime:'', remind:false, repeatMinutes:0, status:'open', createdAt:nowText(), doneAt:''}
     ],
-    dailyReports:[{id:'r1',userId:u1,date:todayJalali(),type:'عمومی',text:'بررسی کلی کارهای روزانه و پیگیری موارد مهم.',createdAt:nowText()}]
+    reports:[]
   };
 }
-function migrateDB(data){
-  const base = seedDB();
-  const d = data && typeof data === 'object' ? data : base;
-  d.users = Array.isArray(d.users) ? d.users : base.users;
-  d.departments = Array.isArray(d.departments) ? d.departments : base.departments;
-  d.locations = Array.isArray(d.locations) ? d.locations : base.locations;
-  d.assets = Array.isArray(d.assets) ? d.assets : [];
-  d.pmTemplates = Array.isArray(d.pmTemplates) ? d.pmTemplates : [];
-  d.tasks = Array.isArray(d.tasks) ? d.tasks : [];
-  d.dailyReports = Array.isArray(d.dailyReports) ? d.dailyReports : [];
-  d.tasks.forEach(t=>{ if(t.hasTime===undefined) t.hasTime = !!t.dueTime; if(!t.type) t.type='تاریخ مشخص'; if(!t.status) t.status='open'; if(!t.logs) t.logs=[]; });
-  return d;
-}
 function loadDB(){
-  try{ const raw=localStorage.getItem(DB_KEY); if(raw) return migrateDB(JSON.parse(raw)); }catch(e){}
-  const d=seedDB(); localStorage.setItem(DB_KEY, JSON.stringify(d)); return d;
+  try{ const d=JSON.parse(localStorage.getItem(DB_KEY)||'null') || seed(); d.users ||= seed().users; d.tasks ||= []; d.reports ||= d.dailyReports || []; return d; }
+  catch{ return seed(); }
 }
-function resetDB(){ localStorage.removeItem(DB_KEY); localStorage.removeItem(SESSION_KEY); db=seedDB(); save(); currentUserId='u_admin'; }
+function qMatch(text, q){ return !q || toEn(String(text).toLowerCase()).includes(toEn(q).toLowerCase()); }
 
-function canSeeTask(t){ const u=currentUser(); if(!u) return false; if(u.level==='admin') return true; if(t.executorId===u.id || t.creatorId===u.id || (t.watcherIds||[]).includes(u.id)) return true; const subIds=db.users.filter(x=>x.managerId===u.id).map(x=>x.id); return subIds.includes(t.executorId); }
-function canEditTask(t){ const u=currentUser(); return !!u && (u.level==='admin' || t.creatorId===u.id); }
-function canDeleteTask(t){ const u=currentUser(); return !!u && (u.level==='admin' || t.creatorId===u.id); }
-function canDoTask(t){ const u=currentUser(); return !!u && (u.level==='admin' || t.executorId===u.id); }
-function isLate(t){ return t.status!=='done' && t.dueDate && compareJalali(t.dueDate,todayJalali())<0 && t.type!=='باید انجام شود / پیشرو'; }
-function visibleTasks(){ return db.tasks.filter(canSeeTask); }
-function myTasks(){ const u=currentUser(); return visibleTasks().filter(t=>t.executorId===u.id || t.creatorId===u.id || (t.watcherIds||[]).includes(u.id) || u.level==='admin'); }
-function myReports(){ return db.dailyReports.filter(r=>r.userId===currentUserId || currentUser()?.level==='admin'); }
-
-const icons = {dashboard:'⌂', tasks:'☑', newTask:'＋', daily:'▣', people:'👥', assets:'⚙', reports:'▥', settings:'⚙', menu:'☰', logout:'⇦'};
-const menuItems = [['dashboard','داشبورد','dashboard'],['newTask','تعریف وظیفه','newTask'],['tasks','وظایف','tasks'],['daily','گزارش روزانه','daily'],['people','پرسنل','people'],['assets','تجهیزات و PM','assets'],['reports','گزارش عملکرد','reports'],['settings','تنظیمات','settings']];
-const bottomItems = [['dashboard','خانه','dashboard'],['tasks','وظایف','tasks'],['newTask','جدید','newTask'],['daily','گزارش','daily']];
+async function initPWA(){
+  if('serviceWorker' in navigator){ try{ await navigator.serviceWorker.register('./sw.js'); }catch(e){} }
+}
+async function askNotification(){
+  if(!('Notification' in window)) return alert('مرورگر این گوشی نوتیفیکیشن را پشتیبانی نمی‌کند.');
+  const p = await Notification.requestPermission();
+  if(p === 'granted'){ toast('نوتیفیکیشن فعال شد'); scheduleNotifications(); }
+  else alert('اجازه نوتیفیکیشن داده نشد. از تنظیمات مرورگر باید Allow شود.');
+}
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+function scheduleNotifications(){
+  clearTimers();
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  db.tasks.filter(t => t.status !== 'done' && t.hasTime && t.dueTime && t.remind).forEach(t => {
+    const first = dateObj(t.dueDate, t.dueTime); if(!first) return;
+    const times = [first.getTime()];
+    const rep = Number(t.repeatMinutes || 0);
+    if(rep > 0){ for(let i=1;i<=6;i++) times.push(first.getTime() + i * rep * 60000); }
+    times.forEach((ms, idx) => {
+      if(ms <= now || ms - now > 2147483647) return;
+      const timer = setTimeout(() => showNotification(t, idx), ms - now);
+      timers.push(timer);
+    });
+  });
+}
+function showNotification(t, idx=0){
+  if(t.status === 'done') return;
+  const title = idx ? 'یادآوری مجدد وظیفه' : 'زمان انجام وظیفه رسید';
+  const body = `${t.title}\n${userName(t.executorId)} • ${fmtJ(t.dueDate)} ${toFa(t.dueTime||'')}`;
+  if(navigator.serviceWorker?.controller){ navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION', title, body, tag:t.id}); }
+  else if('Notification' in window && Notification.permission === 'granted'){ new Notification(title, {body, tag:t.id}); }
+}
+function toast(msg){ const el=document.createElement('div'); el.className='toast'; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2200); }
 
 function render(){
-  if(!currentUserId || !currentUser()){ renderLogin(); return; }
-  app.className='app';
-  app.innerHTML = `
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <aside class="drawer" id="drawer">
-      <div class="drawer-profile"><div class="avatar">👤</div><b>${esc(currentUser().name)}</b><span>${esc(currentUser().role)}</span></div>
-      <div class="drawer-nav">${menuItems.map(m=>drawerBtn(m[0],m[1],m[2])).join('')}</div>
-      <div class="drawer-spacer"></div>
-      <div class="drawer-nav"><button id="logoutBtn"><span class="drawer-icon">${icons.logout}</span><span>خروج</span></button></div>
-    </aside>
-    <header class="topbar">
-      <div class="toprow"><button class="icon-btn" id="menuBtn">${icons.menu}</button><div class="title"><h1>TAK Duty Control</h1><small>سبک تلگرام، وظایف و گزارش کارخانه</small></div><div></div></div>
-      <div class="userline">${esc(currentUser().name)} • ${esc(currentUser().role)}</div>
+  const u = user();
+  app.innerHTML = `<div class="appShell">
+    <header class="top">
+      <button class="topIcon" onclick="openDrawer()">☰</button>
+      <div><h1>${view==='home'?'Today':view==='tasks'?'وظایف':'گزارش من'}</h1><small>${esc(u.name)} • ${esc(u.role||'')}</small></div>
+      <button class="topIcon" onclick="askNotification()">💡</button>
     </header>
-    <main class="main" id="view"></main>
-    <nav class="bottom-nav">${bottomItems.map(m=>bottomBtn(m[0],m[1],m[2])).join('')}</nav>`;
-  $('menuBtn').onclick=()=>{$('drawer').classList.add('show');$('drawerBackdrop').classList.add('show');};
-  $('drawerBackdrop').onclick=closeDrawer;
-  $('logoutBtn').onclick=()=>{clearSession(); currentUserId=''; render();};
-  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;if(currentView!=='newTask')editingTaskId='';closeDrawer();renderView();});
-  renderView();
+    <main class="main">${view==='home'?homeHTML():view==='tasks'?tasksHTML():view==='reports'?reportsHTML():newHTML()}</main>
+    <button class="fab" onclick="go('new')">＋</button>
+    ${bottomHTML()}
+    ${drawerHTML()}
+  </div>`;
 }
-function closeDrawer(){ $('drawer')?.classList.remove('show'); $('drawerBackdrop')?.classList.remove('show'); }
-function drawerBtn(id,label,ic){ return `<button class="${currentView===id?'active':''}" data-view="${id}"><span class="drawer-icon">${icons[ic]||'•'}</span><span>${label}</span></button>`; }
-function bottomBtn(id,label,ic){ return `<button class="${currentView===id?'active':''}" data-view="${id}"><span class="ico">${icons[ic]||'•'}</span><span>${label}</span></button>`; }
-function renderLogin(){
-  app.className='login';
-  app.innerHTML=`<div class="card"><h2>ورود</h2><p class="muted">نسخه آفلاین. اطلاعات روی همین مرورگر ذخیره می‌شود.</p><label>کاربر</label><select id="loginUser">${db.users.filter(u=>u.active).map(u=>`<option value="${u.id}">${esc(u.name)} - ${esc(u.role)}</option>`).join('')}</select><div class="actions"><button class="btn primary full" id="loginBtn">ورود</button><button class="btn gray full" id="resetBtn">ریست دیتای تست</button></div></div>`;
-  $('loginBtn').onclick=()=>{currentUserId=val('loginUser');setSession(currentUserId);render();};
-  $('resetBtn').onclick=()=>{if(confirm('کل دیتای آفلاین پاک شود؟')){resetDB();renderLogin();}};
+function drawerHTML(){ return `<div id="backdrop" class="backdrop" onclick="closeDrawer()"></div><aside id="drawer" class="drawer">
+  <div class="drawerHead"><div class="avatar">تک</div><b>${esc(user().name)}</b><span>${esc(user().role||'')}</span></div>
+  <button onclick="go('home')">🏠 خانه</button><button onclick="go('tasks')">☑️ وظایف</button><button onclick="go('reports')">📝 گزارش من</button><button onclick="go('new')">＋ ثبت جدید</button>
+  <div class="drawerFoot"><button onclick="resetDemo()">ریست نمونه</button></div></aside>`; }
+function bottomHTML(){ return `<nav class="bottom"><button class="${view==='home'?'active':''}" onclick="go('home')"><span>⌂</span>خانه</button><button class="${view==='tasks'?'active':''}" onclick="go('tasks')"><span>☑</span>وظایف</button><button class="${view==='new'?'active':''}" onclick="go('new')"><span>＋</span>جدید</button><button class="${view==='reports'?'active':''}" onclick="go('reports')"><span>□</span>گزارش</button></nav>`; }
+function filteredTasks(filter='all'){
+  let arr = [...db.tasks];
+  if(filter==='open') arr = arr.filter(t=>t.status!=='done');
+  if(filter==='today') arr = arr.filter(t=>t.status!=='done' && (isToday(t.dueDate) || t.type==='پیشرو'));
+  if(filter==='late') arr = arr.filter(isLate);
+  if(filter==='done') arr = arr.filter(t=>t.status==='done');
+  if(taskSearch) arr = arr.filter(t => qMatch(`${t.title} ${t.description} ${userName(t.executorId)} ${t.type} ${statusText(t)}`, taskSearch));
+  return arr.sort((a,b)=> (a.status==='done')-(b.status==='done') || (normJ(a.dueDate)||'9999').localeCompare(normJ(b.dueDate)||'9999') || (a.dueTime||'99').localeCompare(b.dueTime||'99'));
 }
-function renderView(){
-  const view=$('view'); if(!view) return;
-  const map = {dashboard:dashboardHTML, tasks:tasksHTML, newTask:newTaskHTML, daily:dailyHTML, people:peopleHTML, assets:assetsHTML, reports:reportsHTML, settings:settingsHTML};
-  view.innerHTML = (map[currentView]||dashboardHTML)();
-  bindEvents();
+function homeHTML(){
+  const open=db.tasks.filter(t=>t.status!=='done').length, today=filteredTasks('today').length, late=db.tasks.filter(isLate).length, done=db.tasks.filter(t=>t.status==='done').length;
+  return `<section class="stats"><button onclick="goTasks('open')"><b>${toFa(open)}</b><span>باز</span></button><button onclick="goTasks('today')"><b>${toFa(today)}</b><span>امروز</span></button><button onclick="goTasks('late')"><b>${toFa(late)}</b><span>عقب‌افتاده</span></button><button onclick="goTasks('done')"><b>${toFa(done)}</b><span>انجام</span></button></section>
+  <section class="panel"><h2>وظایف من</h2><input class="search" placeholder="جستجو در وظایف من..." oninput="taskSearch=this.value; render()" value="${esc(taskSearch)}">${taskListHTML(filteredTasks('today').slice(0,8))}</section>
+  <section class="panel"><h2>گزارش روزانه</h2><input class="search" placeholder="جستجو در گزارش‌ها..." oninput="reportSearch=this.value; render()" value="${esc(reportSearch)}">${reportListHTML(5)}</section>`;
 }
+let taskFilter = 'open';
+function tasksHTML(){ return `<section class="panel fullPanel"><h2>وظایف</h2><div class="chips"><button class="${taskFilter==='open'?'on':''}" onclick="setFilter('open')">باز</button><button class="${taskFilter==='today'?'on':''}" onclick="setFilter('today')">امروز</button><button class="${taskFilter==='late'?'on':''}" onclick="setFilter('late')">عقب‌افتاده</button><button class="${taskFilter==='done'?'on':''}" onclick="setFilter('done')">انجام شده</button></div><input class="search" placeholder="سرچ قوی: عنوان، مسئول، وضعیت..." oninput="taskSearch=this.value; render()" value="${esc(taskSearch)}">${taskListHTML(filteredTasks(taskFilter))}</section>`; }
+function taskListHTML(arr){ if(!arr.length) return `<div class="empty">وظیفه‌ای وجود ندارد.</div>`; return `<div class="todoList">${arr.map(taskRowHTML).join('')}</div>`; }
+function taskRowHTML(t){ return `<article class="todo ${t.status==='done'?'isDone':''}">
+  <button class="check" onclick="toggleDone('${t.id}')">${t.status==='done'?'✓':''}</button>
+  <div class="todoBody" onclick="editTask('${t.id}')"><div class="todoTitle">${esc(t.title)}</div><div class="todoMeta"><span>${esc(userName(t.executorId))}</span><span>${t.type==='پیشرو'?'پیشرو':fmtJ(t.dueDate)}</span>${t.hasTime&&t.dueTime?`<span>${toFa(t.dueTime)}</span>`:''}<span class="badge ${statusClass(t)}">${statusText(t)}</span></div>${t.description?`<div class="todoDesc">${esc(t.description)}</div>`:''}</div>
+  <button class="more" onclick="menuTask(event,'${t.id}')">⋮</button></article>`; }
+function reportsHTML(){ return `<section class="panel fullPanel"><h2>گزارش من</h2><input class="search" placeholder="جستجو در گزارش‌ها..." oninput="reportSearch=this.value; render()" value="${esc(reportSearch)}">${reportListHTML(999)}</section>`; }
+function filteredReports(){ let arr=[...db.reports]; if(reportSearch) arr=arr.filter(r=>qMatch(`${r.text} ${r.type} ${userName(r.userId)} ${r.date}`, reportSearch)); return arr.sort((a,b)=>(normJ(b.date)||'').localeCompare(normJ(a.date)||'')); }
+function reportListHTML(limit){ const arr=filteredReports().slice(0,limit); if(!arr.length) return `<div class="empty">گزارشی وجود ندارد.</div>`; return `<div class="reportList">${arr.map(r=>`<article class="report" onclick="editReport('${r.id}')"><div><b>${esc(r.type)}</b><span>${fmtJ(r.date)} • ${esc(userName(r.userId))}</span></div><p>${esc(r.text)}</p></article>`).join('')}</div>`; }
+function newHTML(){ return `<section class="panel fullPanel"><div class="tabs"><button class="${editingReportId?'':'on'}" onclick="editingReportId='';render()">وظیفه</button><button class="${editingReportId?'on':''}" onclick="newReport()">گزارش</button></div>${editingReportId?reportFormHTML():taskFormHTML()}</section>`; }
+function taskFormHTML(){ const t = db.tasks.find(x=>x.id===editingTaskId) || {title:'',description:'',executorId:currentUserId,type:'امروز',dueDate:todayJ(),hasTime:false,dueTime:'09:00',remind:false,repeatMinutes:30,status:'open'}; return `<h2>${editingTaskId?'ویرایش وظیفه':'ثبت وظیفه جدید'}</h2>
+  <label>عنوان وظیفه</label><textarea id="taskTitle" class="bigTitle" placeholder="مثلاً پیگیری بار آلومینیوم گمرک">${esc(t.title)}</textarea>
+  <label>توضیح</label><textarea id="taskDesc" placeholder="توضیح اختیاری">${esc(t.description||'')}</textarea>
+  <div class="formGrid"><div><label>مسئول</label><select id="taskUser">${db.users.map(u=>`<option value="${u.id}" ${u.id===t.executorId?'selected':''}>${esc(u.name)}</option>`).join('')}</select></div><div><label>نوع</label><select id="taskType" onchange="render()"><option ${t.type==='امروز'?'selected':''}>امروز</option><option ${t.type==='تاریخ مشخص'?'selected':''}>تاریخ مشخص</option><option ${t.type==='پیشرو'?'selected':''}>پیشرو</option></select></div><div><label>تاریخ شمسی</label><input id="taskDate" value="${esc(t.dueDate||todayJ())}" placeholder="1405/03/09"></div></div>
+  <label class="checkLine"><input id="hasTime" type="checkbox" ${t.hasTime?'checked':''}> ساعت دارد</label>
+  <div class="formGrid"><div><label>ساعت</label><input id="taskTime" value="${esc(t.dueTime||'09:00')}" placeholder="09:00"></div><div><label class="checkLine inner"><input id="remind" type="checkbox" ${t.remind?'checked':''}> نوتیفیکیشن</label></div><div><label>تکرار یادآوری / دقیقه</label><input id="repeatMin" type="number" value="${esc(t.repeatMinutes||30)}"></div></div>
+  <div class="actions"><button class="btn primary" onclick="saveTask()">ذخیره وظیفه</button>${editingTaskId?`<button class="btn danger" onclick="deleteTask('${editingTaskId}')">حذف</button>`:''}<button class="btn" onclick="cancelEdit()">انصراف</button></div>
+  <div class="hint">برای نوتیفیکیشن، دکمه چراغ بالای صفحه را بزن و اجازه اعلان بده. در مرورگر موبایل، وقتی صفحه کاملاً بسته باشد اعلان تضمینی نیست؛ ولی در حالت PWA/باز بودن صفحه کار می‌کند.</div>`; }
+function reportFormHTML(){ const r = db.reports.find(x=>x.id===editingReportId) || {date:todayJ(),type:'عمومی',text:'',userId:currentUserId}; return `<h2>${db.reports.find(x=>x.id===editingReportId)?'ویرایش گزارش':'ثبت گزارش من'}</h2><div class="formGrid"><div><label>تاریخ</label><input id="repDate" value="${esc(r.date)}"></div><div><label>نوع</label><select id="repType"><option ${r.type==='عمومی'?'selected':''}>عمومی</option><option ${r.type==='فروش'?'selected':''}>فروش</option><option ${r.type==='تولید'?'selected':''}>تولید</option><option ${r.type==='اداری'?'selected':''}>اداری</option></select></div></div><label>متن گزارش</label><textarea id="repText" class="reportText" placeholder="امروز چه کارهایی انجام شد؟">${esc(r.text||'')}</textarea><div class="actions"><button class="btn primary" onclick="saveReport()">ذخیره گزارش</button>${db.reports.find(x=>x.id===editingReportId)?`<button class="btn danger" onclick="deleteReport('${editingReportId}')">حذف</button>`:''}<button class="btn" onclick="cancelEdit()">انصراف</button></div>`; }
 
-function dashboardHTML(){
-  const tasks=visibleTasks();
-  const open=tasks.filter(t=>t.status!=='done').length, done=tasks.filter(t=>t.status==='done').length, late=tasks.filter(isLate).length, today=tasks.filter(t=>t.dueDate===todayJalali()&&t.status!=='done').length;
-  const mt = filterTasks(myTasks(), taskSearch);
-  const mr = filterReports(myReports(), reportSearch);
-  return `<div class="kpis">${kpi('باز',open,'open')}${kpi('امروز',today,'today')}${kpi('عقب‌افتاده',late,'late')}${kpi('انجام',done,'done')}</div>
-    <section class="card"><button class="collapse-head" data-toggle-home="tasks"><span>وظایف من</span><span>${homeOpen.tasks?'▲':'▼'}</span></button><div class="collapse-body ${homeOpen.tasks?'show':''}"><input class="search-input" id="homeTaskSearch" placeholder="جستجو در وظایف من..." value="${esc(taskSearch)}">${taskList(mt)}</div></section>
-    <section class="card"><button class="collapse-head" data-toggle-home="reports"><span>گزارش روزانه</span><span>${homeOpen.reports?'▲':'▼'}</span></button><div class="collapse-body ${homeOpen.reports?'show':''}"><input class="search-input" id="homeReportSearch" placeholder="جستجو در گزارش‌ها..." value="${esc(reportSearch)}">${reportList(mr)}</div></section>`;
-}
-function kpi(title,num,filter){ return `<div class="kpi ${dashboardFilter===filter?'active':''}" data-dash-filter="${filter}"><div class="num">${toPersianDigits(num)}</div><div class="lbl">${title}</div></div>`; }
-function filterTasks(rows,q){ q=(q||'').trim(); if(!q) return rows; return rows.filter(t=>[t.title,t.description,t.location,t.department,t.type,t.priority,userName(t.executorId)].join(' ').includes(q)); }
-function filterReports(rows,q){ q=(q||'').trim(); if(!q) return rows; return rows.filter(r=>[r.type,r.text,formatJalali(r.date),userName(r.userId)].join(' ').includes(q)); }
+window.go = v => { view=v; editingTaskId=''; if(v!=='new') editingReportId=''; render(); };
+window.goTasks = f => { taskFilter=f; view='tasks'; render(); };
+window.setFilter = f => { taskFilter=f; render(); };
+window.openDrawer = () => { $('drawer')?.classList.add('show'); $('backdrop')?.classList.add('show'); };
+window.closeDrawer = () => { $('drawer')?.classList.remove('show'); $('backdrop')?.classList.remove('show'); };
+window.askNotification = askNotification;
+window.toggleDone = id => { const t=db.tasks.find(x=>x.id===id); if(!t) return; t.status = t.status==='done'?'open':'done'; t.doneAt = t.status==='done'?nowText():''; save(); render(); };
+window.editTask = id => { editingTaskId=id; editingReportId=''; view='new'; render(); };
+window.menuTask = (ev,id) => { ev.stopPropagation(); const t=db.tasks.find(x=>x.id===id); if(!t) return; const doIt=confirm(`${t.title}\n\nOK = انجام شد / باز شود\nCancel = ویرایش`); if(doIt) window.toggleDone(id); else window.editTask(id); };
+window.deleteTask = id => { if(confirm('وظیفه حذف شود؟')){ db.tasks=db.tasks.filter(x=>x.id!==id); save(); editingTaskId=''; view='tasks'; render(); } };
+window.saveTask = () => {
+  const title=val('taskTitle').trim(); if(!title) return alert('عنوان وظیفه را بنویس.');
+  const dueDate=normJ(val('taskDate')) || todayJ();
+  const t = db.tasks.find(x=>x.id===editingTaskId) || {id:uid('t'), createdAt:nowText(), status:'open', doneAt:''};
+  Object.assign(t,{title, description:val('taskDesc').trim(), executorId:val('taskUser'), type:val('taskType'), dueDate, hasTime:checked('hasTime'), dueTime:toEn(val('taskTime')||'09:00'), remind:checked('remind'), repeatMinutes:Number(val('repeatMin')||0)});
+  if(!db.tasks.find(x=>x.id===t.id)) db.tasks.push(t);
+  save(); editingTaskId=''; view='tasks'; toast('ذخیره شد'); render();
+};
+window.newReport = () => { editingReportId='new'; editingTaskId=''; view='new'; render(); };
+window.editReport = id => { editingReportId=id; editingTaskId=''; view='new'; render(); };
+window.saveReport = () => { const text=val('repText').trim(); if(!text) return alert('متن گزارش را بنویس.'); let r=db.reports.find(x=>x.id===editingReportId); if(!r){ r={id:uid('r'), userId:currentUserId, createdAt:nowText()}; db.reports.push(r); } Object.assign(r,{date:normJ(val('repDate'))||todayJ(), type:val('repType'), text}); save(); editingReportId=''; view='reports'; toast('گزارش ذخیره شد'); render(); };
+window.deleteReport = id => { if(confirm('گزارش حذف شود؟')){ db.reports=db.reports.filter(x=>x.id!==id); save(); editingReportId=''; view='reports'; render(); } };
+window.cancelEdit = () => { editingTaskId=''; editingReportId=''; view='home'; render(); };
+window.resetDemo = () => { if(confirm('اطلاعات نمونه و فعلی ریست شود؟')){ db=seed(); save(); view='home'; render(); } };
 
-function taskList(tasks){
-  if(!tasks.length) return `<div class="empty-state">وظیفه‌ای وجود ندارد.</div>`;
-  return `<div class="list">${tasks.map(t=>`<div class="task-row"><span class="dot ${t.status==='done'?'done':isLate(t)?'late':t.type==='باید انجام شود / پیشرو'?'forward':'open'}"></span><div class="task-main"><div class="task-title">${esc(t.title)}</div><div class="task-sub">${esc(t.location||'-')} • ${esc(t.type||'-')} ${t.hasTime&&t.dueTime?'• '+esc(t.dueTime):'• بدون ساعت'}</div></div><div class="task-person">${esc(userName(t.executorId))}</div><div class="task-date">${compactJalali(t.dueDate)}</div><div class="more"><button class="more-btn" data-menu="${t.id}">⋮</button><div class="action-menu" id="menu_${t.id}">${t.status!=='done'&&canDoTask(t)?`<button data-done="${t.id}">انجام شد</button>`:''}${canEditTask(t)?`<button data-edit="${t.id}">ویرایش</button>`:''}<button data-detail="${t.id}">جزئیات</button>${canDeleteTask(t)?`<button class="danger" data-delete="${t.id}">حذف</button>`:''}</div></div></div>`).join('')}</div>`;
-}
-function tasksHTML(){
-  let rows=visibleTasks();
-  if(dashboardFilter==='open') rows=rows.filter(t=>t.status!=='done');
-  if(dashboardFilter==='today') rows=rows.filter(t=>t.dueDate===todayJalali()&&t.status!=='done');
-  if(dashboardFilter==='late') rows=rows.filter(isLate);
-  if(dashboardFilter==='done') rows=rows.filter(t=>t.status==='done');
-  rows=filterTasks(rows, taskSearch);
-  return `<div class="page-title">وظایف</div><input class="search-input" id="taskSearch" placeholder="جستجو در وظایف..." value="${esc(taskSearch)}">${taskList(rows)}`;
-}
-
-function userSelect(id,selected=''){ return `<select id="${id}">${db.users.filter(u=>u.active).map(u=>`<option value="${u.id}" ${u.id===selected?'selected':''}>${esc(u.name)} - ${esc(u.role)}</option>`).join('')}</select>`; }
-function assetSelect(id,selected=''){ return `<select id="${id}"><option value="">بدون دستگاه</option>${db.assets.map(a=>`<option value="${a.id}" ${a.id===selected?'selected':''}>${esc(a.name)}</option>`).join('')}</select>`; }
-function simpleSelect(id,arr,selected=''){ return `<select id="${id}">${arr.map(x=>`<option value="${esc(x)}" ${x===selected?'selected':''}>${esc(x)}</option>`).join('')}</select>`; }
-function multiUserCheckboxes(name,selected=[]){ return `<div class="checkbox-grid">${db.users.filter(u=>u.active).map(u=>`<label><input type="checkbox" name="${name}" value="${u.id}" ${(selected||[]).includes(u.id)?'checked':''}>${esc(u.name)}</label>`).join('')}</div>`; }
-function newTaskHTML(){
-  const t=editingTaskId?db.tasks.find(x=>x.id===editingTaskId):null, isEdit=!!t;
-  if(isEdit && !canEditTask(t)) return `<div class="card"><h2>دسترسی غیرمجاز</h2><p class="muted">فقط مدیرعامل یا ایجادکننده وظیفه می‌تواند ویرایش کند.</p></div>`;
-  return `<div class="page-title">${isEdit?'ویرایش وظیفه':'وظیفه جدید'}</div><section class="card"><div class="form-grid">
-    <div class="full"><label>عنوان</label><input id="taskTitle" value="${esc(t?.title||'')}"></div>
-    <div><label>مسئول اجرا</label>${userSelect('taskExecutor',t?.executorId||currentUserId)}</div>
-    <div><label>نوع</label>${simpleSelect('taskType',['روزانه','هفتگی','ماهانه','سالیانه','تاریخ مشخص','فوری','بازدیدی','PM','باید انجام شود / پیشرو'],t?.type||'روزانه')}</div>
-    <div><label>تاریخ</label><input id="taskDue" value="${formatJalali(t?.dueDate||todayJalali())}" placeholder="1405/03/08"></div>
-    <div class="full"><label class="checkbox-line"><input type="checkbox" id="hasTime" ${t?.hasTime===false?'':'checked'}> دارای ساعت مشخص</label></div>
-    <div id="timeBox"><label>ساعت</label><input type="time" id="taskTime" value="${esc(t?.dueTime||'09:00')}"><p class="muted">اگر تیک ساعت خاموش باشد، وظیفه بدون ساعت ثبت می‌شود.</p></div>
-    <div><label>بخش / واحد سازمانی</label>${simpleSelect('taskDept',db.departments,t?.department||db.departments[0])}</div>
-    <div><label>محل</label>${simpleSelect('taskLocation',db.locations,t?.location||db.locations[0])}</div>
-    <div><label>اولویت</label>${simpleSelect('taskPriority',['عادی','بالا','بحرانی'],t?.priority||'عادی')}</div>
-    <div><label>تجهیزات مرتبط</label>${assetSelect('taskAsset',t?.assetId||'')}</div>
-    <div><label>نیاز به عکس؟</label>${simpleSelect('taskPhoto',['خیر','بله'],t?.needPhoto?'بله':'خیر')}</div>
-    <div class="full"><label>پیگیرها / ناظرها</label>${multiUserCheckboxes('watchers',t?.watcherIds||[])}</div>
-    <div class="full"><label>شرح کار</label><textarea id="taskDesc">${esc(t?.description||'')}</textarea></div>
-    </div><div class="actions"><button class="btn primary" id="saveTask">${isEdit?'ذخیره ویرایش':'ثبت وظیفه'}</button>${isEdit?`<button class="btn gray" id="cancelEdit">انصراف</button>`:''}</div></section>`;
-}
-function buildDueDate(type){ const d=normalizeJalali(val('taskDue'))||todayJalali(); if(type==='باید انجام شود / پیشرو') return d; return d; }
-function saveTaskAction(){
-  if(!val('taskTitle').trim()){ alert('عنوان وظیفه را بنویس.'); return; }
-  const type=val('taskType'); const hasTime=checked('hasTime'); const watcherIds=[...document.querySelectorAll('input[name="watchers"]:checked')].map(x=>x.value);
-  const payload={title:val('taskTitle'),description:val('taskDesc'),executorId:val('taskExecutor'),watcherIds,department:val('taskDept'),location:val('taskLocation'),assetId:val('taskAsset'),priority:val('taskPriority'),type,dueDate:buildDueDate(type),hasTime,dueTime:hasTime?val('taskTime'):'',needPhoto:val('taskPhoto')==='بله'};
-  if(editingTaskId){ const t=db.tasks.find(x=>x.id===editingTaskId); if(!t||!canEditTask(t)){alert('اجازه ویرایش نداری.');return;} Object.assign(t,payload); t.logs=t.logs||[]; t.logs.push({at:nowText(),by:currentUserId,action:'ویرایش'}); editingTaskId=''; }
-  else db.tasks.unshift({id:uid('t'),...payload,creatorId:currentUserId,status:'open',doneAt:'',doneNote:'',createdAt:nowText(),logs:[{at:nowText(),by:currentUserId,action:'ایجاد'}]});
-  save(); currentView='tasks'; render();
-}
-
-function dailyHTML(){
-  const edit = editingReportId ? db.dailyReports.find(r=>r.id===editingReportId) : null;
-  const rows = filterReports(myReports(), reportSearch);
-  return `<div class="page-title">گزارش روزانه</div><section class="card"><h3>${edit?'ویرایش گزارش':'ثبت گزارش'}</h3><div class="form-grid"><div><label>تاریخ شمسی</label><input id="repDate" value="${formatJalali(edit?.date||todayJalali())}"></div><div><label>نوع گزارش</label>${simpleSelect('repType',['عمومی','فروش','تعمیرات','نگهبانی','تولید','منابع انسانی'],edit?.type||'عمومی')}</div><div class="full"><label>شرح گزارش</label><textarea id="repText">${esc(edit?.text||'')}</textarea></div></div><div class="actions"><button class="btn primary" id="saveReport">${edit?'ذخیره ویرایش':'ثبت گزارش'}</button>${edit?`<button class="btn gray" id="cancelReportEdit">انصراف</button>`:''}<button class="btn gray" id="printToday">پرینت امروز</button></div></section><section class="card"><h3>گزارش‌های من</h3><input class="search-input" id="reportSearch" placeholder="جستجو در گزارش‌ها..." value="${esc(reportSearch)}">${reportList(rows)}</section>`;
-}
-function reportList(rows){ if(!rows.length) return `<div class="empty-state">گزارشی وجود ندارد.</div>`; return `<div class="report-list">${rows.map(r=>`<div class="report-item"><div class="report-top"><b>${esc(r.type||'-')} • ${esc(userName(r.userId))}</b><span>${formatJalali(r.date)}</span></div><div class="report-text">${esc(r.text||'-')}</div><div class="actions"><button class="btn gray" data-edit-report="${r.id}">ویرایش</button><button class="btn danger" data-delete-report="${r.id}">حذف</button></div></div>`).join('')}</div>`; }
-function saveReportAction(){
-  const d=normalizeJalali(val('repDate')); if(!d){alert('تاریخ گزارش درست نیست.');return;} if(!val('repText').trim()){alert('شرح گزارش را بنویس.');return;}
-  if(editingReportId){ const r=db.dailyReports.find(x=>x.id===editingReportId); if(r){ r.date=d; r.type=val('repType'); r.text=val('repText'); r.updatedAt=nowText(); } editingReportId=''; }
-  else db.dailyReports.unshift({id:uid('r'),userId:currentUserId,date:d,type:val('repType'),text:val('repText'),createdAt:nowText()});
-  save(); renderView();
-}
-function printTodayReport(){ const rows=db.dailyReports.filter(r=>r.userId===currentUserId&&r.date===todayJalali()); if(!rows.length){alert('گزارشی برای امروز ثبت نشده.');return;} const win=window.open('','_blank'); win.document.write(`<html dir="rtl" lang="fa"><head><title>گزارش امروز</title><style>body{font-family:Tahoma;padding:20px;line-height:2} .item{border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0}</style></head><body><h2>گزارش کار روزانه</h2><p>پرسنل: ${esc(currentUser().name)} | تاریخ: ${formatJalali(todayJalali())}</p>${rows.map(r=>`<div class="item"><b>${esc(r.type)}</b><p>${esc(r.text)}</p></div>`).join('')}</body></html>`); win.document.close(); setTimeout(()=>win.print(),300); }
-
-function peopleHTML(){ return `<div class="page-title">پرسنل</div><section class="card"><div class="form-grid"><div><label>نام</label><input id="personName"></div><div><label>سمت</label><input id="personRole"></div><div><label>بخش</label>${simpleSelect('personDept',db.departments)}</div><div><label>مدیر مستقیم</label>${userSelect('personManager')}</div><div><label>سطح</label>${simpleSelect('personLevel',['admin','manager','supervisor','hr','staff','worker'])}</div></div><div class="actions"><button class="btn primary" id="savePerson">افزودن پرسنل</button></div></section><section class="card"><h3>لیست پرسنل</h3>${db.users.map(u=>`<span class="pill">${esc(u.name)} - ${esc(u.role)}</span>`).join('')}</section>`; }
-function assetsHTML(){ return `<div class="page-title">تجهیزات و PM</div><section class="card"><h3>افزودن دستگاه</h3><div class="form-grid"><div><label>نام دستگاه</label><input id="assetName"></div><div><label>کد دستگاه</label><input id="assetCode"></div><div><label>محل</label>${simpleSelect('assetLoc',db.locations)}</div><div><label>مسئول</label>${userSelect('assetResp')}</div></div><div class="actions"><button class="btn primary" id="saveAsset">افزودن دستگاه</button></div></section><section class="card"><h3>تجهیزات</h3>${db.assets.map(a=>`<div class="report-item"><b>${esc(a.name)}</b><div class="muted">${esc(a.code)} • ${esc(a.location)} • ${esc(userName(a.responsibleId))}</div></div>`).join('')||'<div class="empty-state">دستگاهی ثبت نشده.</div>'}</section>`; }
-function reportsHTML(){ const tasks=visibleTasks(); const rows=db.users.map(u=>{const mine=tasks.filter(t=>t.executorId===u.id);return {u,total:mine.length,done:mine.filter(t=>t.status==='done').length,late:mine.filter(isLate).length,reports:db.dailyReports.filter(r=>r.userId===u.id).length};}).filter(r=>r.total||r.reports); return `<div class="page-title">گزارش عملکرد</div><section class="card">${rows.map(r=>`<div class="report-item"><b>${esc(r.u.name)}</b><div><span class="pill">کل: ${toPersianDigits(r.total)}</span><span class="pill">انجام: ${toPersianDigits(r.done)}</span><span class="pill">عقب‌افتاده: ${toPersianDigits(r.late)}</span><span class="pill">گزارش: ${toPersianDigits(r.reports)}</span></div></div>`).join('')||'<div class="empty-state">داده‌ای نیست.</div>'}</section>`; }
-
-function settingsHTML(){ return `<div class="page-title">تنظیمات</div><section class="card"><h3>مدیریت محل‌ها</h3><p class="muted">محل‌ها از همینجا اضافه، ویرایش و حذف می‌شوند و در وظایف و تجهیزات استفاده می‌شوند.</p><div class="grid2"><div><label>محل جدید</label><input id="newLocation" placeholder="مثلاً: انبار مواد اولیه"></div><div style="align-self:end"><button class="btn primary full" id="addLocation">افزودن محل</button></div></div><div class="list" style="margin-top:10px">${db.locations.map((l,i)=>`<div class="loc-row"><input value="${esc(l)}" data-location-input="${i}"><button class="btn gray" data-save-location="${i}">ثبت</button><button class="btn danger" data-delete-location="${i}">حذف</button></div>`).join('')||'<div class="empty-state">محلی ثبت نشده.</div>'}</div></section><section class="card"><h3>پشتیبان‌گیری</h3><div class="actions"><button class="btn gray" id="exportDB">خروجی JSON</button><button class="btn danger" id="resetDB">ریست کامل</button></div><textarea id="backupBox" placeholder="خروجی اینجا نمایش داده می‌شود"></textarea></section>`; }
-
-function bindEvents(){
-  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;if(currentView!=='newTask')editingTaskId='';closeDrawer();renderView();});
-  document.querySelectorAll('[data-dash-filter]').forEach(b=>b.onclick=()=>{dashboardFilter=b.dataset.dashFilter;currentView='tasks';renderView();});
-  document.querySelectorAll('[data-toggle-home]').forEach(b=>b.onclick=()=>{homeOpen[b.dataset.toggleHome]=!homeOpen[b.dataset.toggleHome];renderView();});
-  const hts=$('homeTaskSearch'); if(hts) hts.oninput=()=>{taskSearch=hts.value; renderView();};
-  const hrs=$('homeReportSearch'); if(hrs) hrs.oninput=()=>{reportSearch=hrs.value; renderView();};
-  const ts=$('taskSearch'); if(ts) ts.oninput=()=>{taskSearch=ts.value; renderView();};
-  const rs=$('reportSearch'); if(rs) rs.oninput=()=>{reportSearch=rs.value; renderView();};
-  document.querySelectorAll('[data-menu]').forEach(btn=>btn.onclick=(e)=>{e.stopPropagation();document.querySelectorAll('.action-menu').forEach(m=>m.classList.remove('show'));$('menu_'+btn.dataset.menu)?.classList.toggle('show');});
-  document.body.onclick=()=>document.querySelectorAll('.action-menu').forEach(m=>m.classList.remove('show'));
-  document.querySelectorAll('[data-detail]').forEach(el=>el.onclick=e=>{e.stopPropagation();showDetail(el.dataset.detail);});
-  document.querySelectorAll('[data-done]').forEach(el=>el.onclick=e=>{e.stopPropagation();markDone(el.dataset.done);});
-  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=e=>{e.stopPropagation();editingTaskId=el.dataset.edit;currentView='newTask';render();});
-  document.querySelectorAll('[data-delete]').forEach(el=>el.onclick=e=>{e.stopPropagation();deleteTask(el.dataset.delete);});
-  const hasTime=$('hasTime'); if(hasTime){ const update=()=>{$('timeBox')?.classList.toggle('hidden',!hasTime.checked);}; hasTime.onchange=update; update(); }
-  const saveTask=$('saveTask'); if(saveTask) saveTask.onclick=saveTaskAction;
-  const cancelEdit=$('cancelEdit'); if(cancelEdit) cancelEdit.onclick=()=>{editingTaskId='';currentView='tasks';render();};
-  const saveReport=$('saveReport'); if(saveReport) saveReport.onclick=saveReportAction;
-  const cancelReport=$('cancelReportEdit'); if(cancelReport) cancelReport.onclick=()=>{editingReportId='';renderView();};
-  document.querySelectorAll('[data-edit-report]').forEach(b=>b.onclick=()=>{editingReportId=b.dataset.editReport; currentView='daily'; renderView();});
-  document.querySelectorAll('[data-delete-report]').forEach(b=>b.onclick=()=>{deleteReport(b.dataset.deleteReport);});
-  const printToday=$('printToday'); if(printToday) printToday.onclick=printTodayReport;
-  const savePerson=$('savePerson'); if(savePerson) savePerson.onclick=()=>{if(!val('personName').trim()){alert('نام را بنویس.');return;} db.users.push({id:uid('u'),name:val('personName'),role:val('personRole'),department:val('personDept'),managerId:val('personManager'),level:val('personLevel'),active:true});save();renderView();};
-  const saveAsset=$('saveAsset'); if(saveAsset) saveAsset.onclick=()=>{if(!val('assetName').trim()){alert('نام دستگاه را بنویس.');return;} db.assets.push({id:uid('a'),name:val('assetName'),code:val('assetCode'),location:val('assetLoc'),responsibleId:val('assetResp')});save();renderView();};
-  const addLocation=$('addLocation'); if(addLocation) addLocation.onclick=()=>{const name=val('newLocation').trim(); if(!name)return; if(!db.locations.includes(name)) db.locations.push(name); save(); renderView();};
-  document.querySelectorAll('[data-save-location]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.saveLocation); const input=document.querySelector(`[data-location-input="${i}"]`); const old=db.locations[i]; const name=input.value.trim(); if(!name)return; db.locations[i]=name; db.tasks.forEach(t=>{if(t.location===old)t.location=name;}); db.assets.forEach(a=>{if(a.location===old)a.location=name;}); save(); renderView();});
-  document.querySelectorAll('[data-delete-location]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.deleteLocation); const name=db.locations[i]; if(confirm(`محل «${name}» حذف شود؟`)){db.locations.splice(i,1);save();renderView();}});
-  const exportDB=$('exportDB'); if(exportDB) exportDB.onclick=()=>{$('backupBox').value=JSON.stringify(db,null,2);};
-  const reset=$('resetDB'); if(reset) reset.onclick=()=>{if(confirm('کل اطلاعات پاک شود؟')){resetDB();render();}};
-}
-function markDone(id){ const t=db.tasks.find(x=>x.id===id); if(!t||!canDoTask(t)){alert('اجازه ثبت انجام نداری.');return;} const note=prompt('توضیح انجام:',''); t.status='done'; t.doneAt=nowText(); t.doneNote=note||''; t.logs=t.logs||[]; t.logs.push({at:nowText(),by:currentUserId,action:'انجام شد'}); save(); renderView(); }
-function deleteTask(id){ const t=db.tasks.find(x=>x.id===id); if(!t||!canDeleteTask(t)){alert('اجازه حذف نداری.');return;} if(confirm('این وظیفه حذف شود؟')){db.tasks=db.tasks.filter(x=>x.id!==id);save();renderView();} }
-function deleteReport(id){ const r=db.dailyReports.find(x=>x.id===id); if(!r)return; if(r.userId!==currentUserId && currentUser()?.level!=='admin'){alert('اجازه حذف این گزارش را نداری.');return;} if(confirm('این گزارش حذف شود؟')){db.dailyReports=db.dailyReports.filter(x=>x.id!==id); if(editingReportId===id) editingReportId=''; save(); renderView();} }
-function showDetail(id){ const t=db.tasks.find(x=>x.id===id); if(!t)return; alert(`عنوان: ${t.title}\nمسئول: ${userName(t.executorId)}\nتعریف‌کننده: ${userName(t.creatorId)}\nپیگیرها: ${(t.watcherIds||[]).map(userName).join('، ')}\nمحل: ${t.location||'-'}\nدستگاه: ${assetName(t.assetId)}\nمهلت: ${formatJalali(t.dueDate)} ${t.hasTime? t.dueTime : 'بدون ساعت'}\nنوع: ${t.type}\nوضعیت: ${t.status}\nشرح: ${t.description||'-'}`); }
-
-render();
+initPWA(); render(); scheduleNotifications();
